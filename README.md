@@ -1,5 +1,5 @@
 # 🛎️ Reminder App Project (Java)
-![Java](https://img.shields.io/badge/Java-22-blue?style=flat&logo=openjdk)
+![Java](https://img.shields.io/badge/Java-17-blue?style=flat&logo=openjdk)
 
 A **desktop task reminder application** designed for personal use.  
 All data is stored locally on your computer, ensuring privacy and accessibility.
@@ -13,7 +13,7 @@ This project includes the following key features:
 |----------------------|------------------|
 | 📌 **MVC Architecture** | Implemented ✅ |
 | 🏗 **Maven Project**     | Used ✅ |
-| ☕ **Java 22**          | Latest version ✅ |
+| ☕ **Java 17**          | Latest version ✅ |
 
 ---
 
