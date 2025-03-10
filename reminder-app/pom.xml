@@ -97,7 +97,12 @@
             <artifactId>swing-datetime-picker</artifactId>
             <version>1.2.0</version>
         </dependency>
-
+        
+        <dependency>
+            <groupId>raven.toast</groupId>
+            <artifactId>swing-toast-notifications</artifactId>
+            <version>1.0.3</version>
+        </dependency>
     
     </dependencies>
 
