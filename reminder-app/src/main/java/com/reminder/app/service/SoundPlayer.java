@@ -47,12 +47,17 @@ public class SoundPlayer {
         if (!isEnabled()) {
             return;
         }
-        String file = getSoundFile();
-        if (file != null && !file.isEmpty() && new File(file).isFile()) {
-            playWav(new File(file));
-        } else {
-            Toolkit.getDefaultToolkit().beep();
-        }
+        // En un hilo daemon para no bloquear el EDT mientras suena.
+        Thread t = new Thread(() -> {
+            String file = getSoundFile();
+            if (file != null && !file.isEmpty() && new File(file).isFile()) {
+                playWav(new File(file));
+            } else {
+                playTone();
+            }
+        }, "sound-player");
+        t.setDaemon(true);
+        t.start();
     }
 
     private void playWav(File file) {
@@ -60,9 +65,50 @@ public class SoundPlayer {
             Clip clip = AudioSystem.getClip();
             clip.open(audio);
             clip.start();
+            // Espera a que termine para que el Clip no se cierre antes de sonar.
+            clip.drain();
         } catch (Exception ex) {
-            LOGGER.log(Level.WARNING, "No se pudo reproducir el .wav, usando beep", ex);
+            LOGGER.log(Level.WARNING, "No se pudo reproducir el .wav, usando tono", ex);
+            playTone();
+        }
+    }
+
+    /**
+     * Genera y reproduce un tono audible (dos notas, tipo "ding-dong") con
+     * javax.sound.sampled. No depende del "sonido de evento" de Windows, asi que
+     * suena aunque el beep del sistema este desactivado.
+     */
+    private void playTone() {
+        try {
+            float sampleRate = 44100f;
+            javax.sound.sampled.AudioFormat format =
+                    new javax.sound.sampled.AudioFormat(sampleRate, 16, 1, true, false);
+            javax.sound.sampled.SourceDataLine line = AudioSystem.getSourceDataLine(format);
+            line.open(format);
+            line.start();
+            writeNote(line, sampleRate, 880, 180);  // La5
+            writeNote(line, sampleRate, 1175, 220);  // Re6
+            line.drain();
+            line.stop();
+            line.close();
+        } catch (Exception ex) {
+            LOGGER.log(Level.WARNING, "No se pudo reproducir el tono, usando beep", ex);
             Toolkit.getDefaultToolkit().beep();
         }
+    }
+
+    private void writeNote(javax.sound.sampled.SourceDataLine line, float sampleRate,
+                           double freq, int millis) {
+        int samples = (int) (millis * sampleRate / 1000);
+        byte[] buffer = new byte[samples * 2];
+        for (int i = 0; i < samples; i++) {
+            // Envolvente para evitar clicks (fade in/out).
+            double env = Math.min(1.0, Math.min(i, samples - i) / (sampleRate * 0.02));
+            double angle = 2.0 * Math.PI * i * freq / sampleRate;
+            short val = (short) (Math.sin(angle) * env * 18000);
+            buffer[i * 2] = (byte) (val & 0xFF);
+            buffer[i * 2 + 1] = (byte) ((val >> 8) & 0xFF);
+        }
+        line.write(buffer, 0, buffer.length);
     }
 }
