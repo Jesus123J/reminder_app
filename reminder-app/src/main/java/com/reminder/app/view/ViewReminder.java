@@ -10,11 +10,14 @@ import com.reminder.app.view.components.Action_button;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JTable;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
 import raven.datetime.component.date.DatePicker;
 import raven.datetime.component.time.TimePicker;
@@ -31,11 +34,16 @@ public final class ViewReminder extends javax.swing.JFrame {
      */
     private Action_button event_button;
 
+    /** Selectores de fecha/hora; se conservan para leer el valor elegido. */
+    private DatePicker datePicker;
+    private TimePicker timePicker;
+
     public ViewReminder(Action_button event_button) {
         this.event_button = event_button;
         Notifications.getInstance().setJFrame(this);
         initComponents();
         applyTheme();
+        setupTableModel();
         cellRenderTable();
         settingDate();
     }
@@ -81,10 +89,86 @@ public final class ViewReminder extends javax.swing.JFrame {
     }
 
     public void settingDate() {
-        DatePicker datePicker = new DatePicker();
-        TimePicker daTimePicker = new TimePicker();
-        daTimePicker.setEditor(jFormattedTextField1);
+        datePicker = new DatePicker();
+        timePicker = new TimePicker();
+        timePicker.set24HourView(true);
+        timePicker.setEditor(jFormattedTextField1);
         datePicker.setEditor(jFormattedDateStart);
+        // Valores por defecto utiles: hoy y la hora actual.
+        datePicker.now();
+        timePicker.setSelectedTime(LocalTime.now().withSecond(0).withNano(0));
+    }
+
+    // ----- API para el controlador: lectura del formulario -----
+
+    public String getTitleInput() {
+        return textField1.getText().trim();
+    }
+
+    public String getDescriptionInput() {
+        return jTextPane1.getText().trim();
+    }
+
+    public LocalDate getSelectedDate() {
+        return datePicker.isDateSelected() ? datePicker.getSelectedDate() : null;
+    }
+
+    public LocalTime getSelectedTime() {
+        return timePicker.isTimeSelected() ? timePicker.getSelectedTime() : null;
+    }
+
+    /** Traduce la etiqueta del combo de antelacion a minutos. */
+    public int getAdvanceMinutes() {
+        String label = String.valueOf(jComboBox1.getSelectedItem());
+        switch (label) {
+            case "5 minutos":   return 5;
+            case "10 minutos":  return 10;
+            case "50 minutos":  return 50;
+            case "1 hora":      return 60;
+            case "Un dia Antes":
+            case "Un día Antes": return 1440;
+            default:            return 0;
+        }
+    }
+
+    /** Limpia el formulario tras guardar. */
+    public void clearForm() {
+        textField1.setText("");
+        jTextPane1.setText("");
+        datePicker.now();
+        timePicker.setSelectedTime(LocalTime.now().withSecond(0).withNano(0));
+        jComboBox1.setSelectedIndex(0);
+    }
+
+    // ----- API para el controlador: pintado de la tabla -----
+
+    /** Instala un modelo de tabla dinamico (sin filas hardcodeadas). */
+    private void setupTableModel() {
+        DefaultTableModel model = new DefaultTableModel(
+                new Object[]{"TÍTULO", "DESCRIPCIÓN", " "}, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return column == 2; // solo la columna de accion (boton eliminar)
+            }
+        };
+        jTable1.setModel(model);
+    }
+
+    /** Refresca la tabla con la lista de recordatorios indicada. */
+    public void loadReminders(java.util.List<com.reminder.app.model.Reminder> reminders) {
+        DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
+        model.setRowCount(0);
+        for (com.reminder.app.model.Reminder r : reminders) {
+            String when = (r.getDate() == null ? "" : r.getDate())
+                    + (r.getTime() == null ? "" : " " + r.getTime());
+            String desc = r.getDescription() == null ? "" : r.getDescription().replace("\n", " ");
+            if (!when.isBlank()) {
+                desc = desc.isBlank() ? when : desc + "  ·  " + when;
+            }
+            model.addRow(new Object[]{r.getTitle(), desc, ""});
+        }
+        // Reaplicar render/editor de columnas tras cambiar el modelo.
+        cellRenderTable();
     }
 
     public void cellRenderTable() {
