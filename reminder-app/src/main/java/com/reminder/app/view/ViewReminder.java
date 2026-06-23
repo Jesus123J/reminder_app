@@ -162,11 +162,14 @@ public final class ViewReminder extends javax.swing.JFrame {
      * configuracion externa se muestran solo informativas.
      */
     public void installIntegrationsMenu(IntegrationManager manager, SoundPlayer sound,
-                                        java.util.function.BiConsumer<String, String> filterHandler) {
+                                        java.util.function.BiConsumer<String, String> filterHandler,
+                                        Runnable openNotes) {
         JMenuBar menuBar = new JMenuBar();
         menuBar.setBorder(new EmptyBorder(4, 8, 4, 8));
 
         // Botones de la barra con texto limpio (sin emoji que se ven como cuadros).
+        menuBar.add(barButton("Notas", e -> openNotes.run()));
+        menuBar.add(javax.swing.Box.createHorizontalStrut(6));
         menuBar.add(barButton("Integraciones", e -> openIntegrationsDialog(manager)));
         menuBar.add(javax.swing.Box.createHorizontalStrut(6));
         menuBar.add(barButton("Sonido", e -> openSoundDialog(sound)));
