@@ -17,6 +17,8 @@ public class Note {
     private boolean locked;
     private String passwordHash;   // SHA-256 de la contraseña (verificacion rapida)
     private String cipher;         // contenido cifrado (cuando esta bloqueada)
+    /** Rutas de adjuntos (imagenes/audio) asociados a la nota. */
+    private final java.util.List<String> attachments = new java.util.ArrayList<>();
 
     public Note(long id, String title, String content) {
         this.id = id;
@@ -69,5 +71,9 @@ public class Note {
 
     public void setCipher(String cipher) {
         this.cipher = cipher == null ? "" : cipher;
+    }
+
+    public java.util.List<String> getAttachments() {
+        return attachments;
     }
 }

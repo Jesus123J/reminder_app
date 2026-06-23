@@ -47,3 +47,6 @@ calendar-export/
 
 # Datos de notas (runtime)
 notes.dat
+
+# Adjuntos de notas (runtime)
+notes-assets/

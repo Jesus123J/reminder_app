@@ -42,9 +42,12 @@ public class NotesPanel extends JPanel {
     private final JTextField titleField = new JTextField();
     private final JTextArea contentArea = new JTextArea();
     private final JButton lockButton = new JButton("Bloquear");
+    private final JPanel attachmentStrip = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 4));
 
     private Note current;
     private String sessionPassword;
+
+    private static final String ASSETS_DIR = "notes-assets";
 
     public NotesPanel(NoteRepository repository, Runnable onBack) {
         this.repository = repository;
@@ -112,11 +115,27 @@ public class NotesPanel extends JPanel {
         contentScroll.setBorder(BorderFactory.createLineBorder(Theme.LINE));
         right.add(contentScroll, BorderLayout.CENTER);
 
+        attachmentStrip.setOpaque(false);
+
+        JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        toolbar.setOpaque(false);
+        toolbar.add(plain(new JButton("Imagen…"), e -> addAttachment(true)));
+        toolbar.add(plain(new JButton("Audio…"), e -> addAttachment(false)));
+
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         actions.setOpaque(false);
         actions.add(plain(lockButton, e -> toggleLock()));
         actions.add(primary(new JButton("Guardar"), e -> saveCurrent()));
-        right.add(actions, BorderLayout.SOUTH);
+
+        JPanel south = new JPanel(new BorderLayout());
+        south.setOpaque(false);
+        JPanel bars = new JPanel(new BorderLayout());
+        bars.setOpaque(false);
+        bars.add(toolbar, BorderLayout.WEST);
+        bars.add(actions, BorderLayout.EAST);
+        south.add(attachmentStrip, BorderLayout.NORTH);
+        south.add(bars, BorderLayout.SOUTH);
+        right.add(south, BorderLayout.SOUTH);
 
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, right);
         split.setDividerLocation(220);
@@ -182,6 +201,7 @@ public class NotesPanel extends JPanel {
         contentArea.setCaretPosition(0);
         setEditorEnabled(true);
         lockButton.setText(sel.isLocked() ? "Quitar contraseña" : "Bloquear");
+        refreshAttachments();
     }
 
     private void saveCurrent() {
@@ -242,6 +262,79 @@ public class NotesPanel extends JPanel {
         refreshList();
     }
 
+    /** Copia un archivo (imagen/audio) a la carpeta de la nota y lo adjunta. */
+    private void addAttachment(boolean image) {
+        if (current == null) {
+            return;
+        }
+        javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
+        fc.setFileFilter(image
+                ? new javax.swing.filechooser.FileNameExtensionFilter("Imágenes", "png", "jpg", "jpeg", "gif")
+                : new javax.swing.filechooser.FileNameExtensionFilter("Audio", "wav", "mp3", "m4a", "ogg"));
+        if (fc.showOpenDialog(this) != javax.swing.JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        try {
+            java.io.File src = fc.getSelectedFile();
+            java.nio.file.Path dir = java.nio.file.Paths.get(ASSETS_DIR, String.valueOf(current.getId()));
+            java.nio.file.Files.createDirectories(dir);
+            java.nio.file.Path dest = dir.resolve(src.getName());
+            java.nio.file.Files.copy(src.toPath(), dest,
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            current.getAttachments().add(dest.toString());
+            repository.update(current);
+            refreshAttachments();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "No se pudo adjuntar: " + ex.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /** Reconstruye la franja de adjuntos (miniaturas de imagen / botones de audio). */
+    private void refreshAttachments() {
+        attachmentStrip.removeAll();
+        if (current != null) {
+            for (String path : current.getAttachments()) {
+                java.io.File f = new java.io.File(path);
+                String lower = f.getName().toLowerCase();
+                boolean isImg = lower.endsWith(".png") || lower.endsWith(".jpg")
+                        || lower.endsWith(".jpeg") || lower.endsWith(".gif");
+                if (isImg && f.isFile()) {
+                    javax.swing.ImageIcon icon = new javax.swing.ImageIcon(
+                            new javax.swing.ImageIcon(path).getImage()
+                                    .getScaledInstance(72, 72, java.awt.Image.SCALE_SMOOTH));
+                    JLabel thumb = new JLabel(icon);
+                    thumb.setToolTipText(f.getName() + " (clic para abrir)");
+                    thumb.setBorder(BorderFactory.createLineBorder(Theme.LINE));
+                    thumb.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+                    thumb.addMouseListener(new java.awt.event.MouseAdapter() {
+                        @Override
+                        public void mouseClicked(java.awt.event.MouseEvent e) {
+                            openFile(f);
+                        }
+                    });
+                    attachmentStrip.add(thumb);
+                } else {
+                    JButton play = plain(new JButton("♪ " + f.getName()), e -> openFile(f));
+                    attachmentStrip.add(play);
+                }
+            }
+        }
+        attachmentStrip.revalidate();
+        attachmentStrip.repaint();
+    }
+
+    private void openFile(java.io.File f) {
+        try {
+            if (f.isFile() && java.awt.Desktop.isDesktopSupported()) {
+                java.awt.Desktop.getDesktop().open(f);
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "No se pudo abrir el archivo", "Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
     private String askPassword(String message) {
         JPasswordField field = new JPasswordField();
         int ok = JOptionPane.showConfirmDialog(this, field, message,
@@ -263,6 +356,7 @@ public class NotesPanel extends JPanel {
     private void clearEditor() {
         titleField.setText("");
         contentArea.setText("");
+        refreshAttachments();
     }
 
     private void setEditorEnabled(boolean enabled) {

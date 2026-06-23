@@ -91,6 +91,13 @@ public class NoteRepository {
                     n.setContent(dec(p[3]));
                 }
                 n.setPasswordHash(p[4]);
+                if (p.length > 5 && !p[5].isEmpty()) {
+                    for (String a : p[5].split(",")) {
+                        if (!a.isEmpty()) {
+                            n.getAttachments().add(dec(a));
+                        }
+                    }
+                }
                 cache.add(n);
                 maxId = Math.max(maxId, id);
             }
@@ -105,12 +112,20 @@ public class NoteRepository {
         List<String> lines = new ArrayList<>();
         for (Note n : cache) {
             String payload = n.isLocked() ? n.getCipher() : enc(n.getContent());
+            StringBuilder att = new StringBuilder();
+            for (String a : n.getAttachments()) {
+                if (att.length() > 0) {
+                    att.append(",");
+                }
+                att.append(enc(a));
+            }
             lines.add(String.join(SEP,
                     Long.toString(n.getId()),
                     enc(n.getTitle()),
                     Boolean.toString(n.isLocked()),
                     payload,
-                    n.getPasswordHash()));
+                    n.getPasswordHash(),
+                    att.toString()));
         }
         try {
             Files.write(path, lines, StandardCharsets.UTF_8);
