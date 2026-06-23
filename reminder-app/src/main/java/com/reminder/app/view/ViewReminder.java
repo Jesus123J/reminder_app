@@ -14,13 +14,14 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import javax.swing.JCheckBoxMenuItem;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
+import javax.swing.JDialog;
 import javax.swing.JLabel;
-import javax.swing.JMenu;
 import javax.swing.JMenuBar;
-import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
+import javax.swing.JPanel;
 import javax.swing.JTable;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -109,57 +110,99 @@ public final class ViewReminder extends javax.swing.JFrame {
      */
     public void installIntegrationsMenu(IntegrationManager manager) {
         JMenuBar menuBar = new JMenuBar();
-        JMenu menu = new JMenu("⚙  Integraciones");
-        menu.setFont(Theme.fontBold(13));
+        menuBar.setBorder(new EmptyBorder(4, 8, 4, 8));
 
-        for (ReminderIntegration integration : manager.getIntegrations()) {
-            if (integration.canToggle()) {
-                JCheckBoxMenuItem item = new JCheckBoxMenuItem(integration.name(), integration.isEnabled());
-                item.setToolTipText(integration.description());
-                item.addActionListener(e -> integration.setEnabled(item.isSelected()));
-                menu.add(item);
-            }
-        }
+        // Boton (no menu desplegable) que abre un dialogo integrado y centrado.
+        JButton btn = new JButton("⚙  Integraciones");
+        btn.setFont(Theme.fontBold(13));
+        btn.setForeground(Theme.TEXT);
+        btn.setFocusPainted(false);
+        btn.addActionListener(e -> openIntegrationsDialog(manager));
+        menuBar.add(btn);
+        menuBar.add(javax.swing.Box.createHorizontalGlue());
 
-        menu.addSeparator();
-        for (ReminderIntegration integration : manager.getIntegrations()) {
-            if (!integration.canToggle()) {
-                String estado = integration.isEnabled() ? "activa" : "sin configurar";
-                JMenuItem info = new JMenuItem(integration.name() + "  —  " + estado);
-                info.setEnabled(false);
-                menu.add(info);
-            }
-        }
-
-        menu.addSeparator();
-        JMenuItem about = new JMenuItem("¿Cómo funcionan?");
-        about.addActionListener(e -> showIntegrationsHelp(manager));
-        menu.add(about);
-
-        menuBar.add(menu);
         setJMenuBar(menuBar);
-        // Recalcula el tamano incluyendo la barra de menu (evita recortes) y
-        // conserva el extra de ancho; recentra la ventana.
+        // Recalcula el tamano incluyendo la barra (evita recortes), conserva el
+        // extra de ancho y recentra la ventana.
         pack();
         setSize(getWidth() + 10, getHeight());
         setLocationRelativeTo(null);
     }
 
-    private void showIntegrationsHelp(IntegrationManager manager) {
-        StringBuilder sb = new StringBuilder("<html><body style='width:320px'>");
-        sb.append("<b>Extensiones disponibles</b><br><br>");
+    /** Dialogo modal e integrado para activar/desactivar las extensiones. */
+    private void openIntegrationsDialog(IntegrationManager manager) {
+        final JDialog dialog = new JDialog(this, "Integraciones / Extensiones", true);
+
+        JPanel content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBackground(Theme.BACKGROUND);
+        content.setBorder(new EmptyBorder(18, 20, 18, 20));
+
+        JLabel header = new JLabel("Activa las extensiones que quieras");
+        header.setFont(Theme.fontBold(16));
+        header.setForeground(Theme.TEXT);
+        header.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(header);
+        content.add(javax.swing.Box.createVerticalStrut(14));
+
         for (ReminderIntegration integration : manager.getIntegrations()) {
-            sb.append("• <b>").append(integration.name()).append("</b><br>")
-              .append(integration.description().isEmpty()
-                      ? "Integración avanzada (requiere configuración)."
-                      : integration.description())
-              .append("<br><br>");
+            content.add(buildIntegrationRow(integration));
+            content.add(javax.swing.Box.createVerticalStrut(10));
         }
-        sb.append("Actívalas desde el menú <i>Integraciones</i>. Las de tipo "
-                + "<i>link</i> y <i>.ics</i> usan tu propia cuenta y no requieren tokens.");
-        sb.append("</body></html>");
-        JOptionPane.showMessageDialog(this, new JLabel(sb.toString()),
-                "Integraciones", JOptionPane.INFORMATION_MESSAGE);
+
+        JButton close = new JButton("Cerrar");
+        close.setFont(Theme.fontBold(13));
+        close.setBackground(Theme.PRIMARY);
+        close.setForeground(Theme.TEXT_ON_PRIMARY);
+        close.setFocusPainted(false);
+        close.setAlignmentX(Component.LEFT_ALIGNMENT);
+        close.addActionListener(e -> dialog.dispose());
+        content.add(javax.swing.Box.createVerticalStrut(6));
+        content.add(close);
+
+        dialog.setContentPane(content);
+        dialog.pack();
+        dialog.setMinimumSize(new Dimension(420, dialog.getHeight()));
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+
+    private JPanel buildIntegrationRow(ReminderIntegration integration) {
+        JPanel row = new JPanel(new java.awt.BorderLayout(10, 0));
+        row.setBackground(Theme.SURFACE);
+        row.setBorder(new EmptyBorder(10, 14, 10, 14));
+        row.setAlignmentX(Component.LEFT_ALIGNMENT);
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 70));
+
+        JPanel texts = new JPanel();
+        texts.setLayout(new BoxLayout(texts, BoxLayout.Y_AXIS));
+        texts.setOpaque(false);
+        JLabel name = new JLabel(integration.name());
+        name.setFont(Theme.fontBold(14));
+        name.setForeground(Theme.TEXT);
+        String desc = integration.description().isEmpty()
+                ? "Integración avanzada (requiere configuración)."
+                : integration.description();
+        JLabel sub = new JLabel(desc);
+        sub.setFont(Theme.fontRegular(12));
+        sub.setForeground(Theme.TEXT_MUTED);
+        texts.add(name);
+        texts.add(sub);
+        row.add(texts, java.awt.BorderLayout.CENTER);
+
+        if (integration.canToggle()) {
+            JCheckBox toggle = new JCheckBox();
+            toggle.setSelected(integration.isEnabled());
+            toggle.setOpaque(false);
+            toggle.addActionListener(e -> integration.setEnabled(toggle.isSelected()));
+            row.add(toggle, java.awt.BorderLayout.EAST);
+        } else {
+            JLabel state = new JLabel(integration.isEnabled() ? "activa" : "sin configurar");
+            state.setFont(Theme.fontRegular(12));
+            state.setForeground(integration.isEnabled() ? Theme.PRIMARY_DARK : Theme.TEXT_MUTED);
+            row.add(state, java.awt.BorderLayout.EAST);
+        }
+        return row;
     }
 
     public void settingDate() {
