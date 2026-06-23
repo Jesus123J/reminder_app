@@ -37,7 +37,6 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
     private final SoundPlayer soundPlayer = new SoundPlayer();
     private final com.reminder.app.repository.NoteRepository noteRepository =
             new com.reminder.app.repository.NoteRepository();
-    private com.reminder.app.view.NotesView notesView;
 
     /** Lista actual mostrada en la tabla; su orden coincide con las filas. */
     private List<Reminder> currentReminders;
@@ -61,7 +60,8 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         viewReminder.getEditButton().addActionListener(e -> loadSelectedForEdit());
         viewReminder.setRowSelectionHandler(this::loadForEdit);
         viewReminder.installSnoozeMenu(this::snooze);
-        viewReminder.installIntegrationsMenu(integrations, soundPlayer, this::applyFilter, this::openNotes);
+        viewReminder.attachNotes(noteRepository);
+        viewReminder.installIntegrationsMenu(integrations, soundPlayer, this::applyFilter);
         trayNotifier.enableMinimizeToTray(viewReminder);
         refreshTable();
 
@@ -144,15 +144,6 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         return s == null ? "" : s;
     }
 
-    /** Abre (o trae al frente) la ventana de notas. */
-    private void openNotes() {
-        if (notesView == null) {
-            notesView = new com.reminder.app.view.NotesView(noteRepository);
-        }
-        notesView.setVisible(true);
-        notesView.toFront();
-        notesView.requestFocus();
-    }
 
     /** Actualiza el filtro de busqueda/fecha y refresca. */
     private void applyFilter(String text, String key) {

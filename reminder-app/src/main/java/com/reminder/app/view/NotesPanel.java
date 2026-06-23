@@ -5,70 +5,78 @@ import com.reminder.app.model.Note;
 import com.reminder.app.repository.NoteRepository;
 import com.reminder.app.util.NoteCrypto;
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import javax.swing.BorderFactory;
+import javax.swing.Box;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
-import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.border.EmptyBorder;
 
 /**
- * Ventana de notas tipo "Apple Notes" con diseño moderno.
+ * Panel de notas tipo "Apple Notes" embebido en la ventana principal.
  *
- * Lista de notas a la izquierda y editor a la derecha. Cada nota puede
- * bloquearse con contraseña (su contenido se guarda cifrado con AES).
+ * Lista a la izquierda y editor a la derecha; cada nota puede bloquearse con
+ * contraseña (contenido cifrado con AES). Comparte la paleta del resto de la app.
  *
  * @author Jesus Gutierrez
  */
-public class NotesView extends JFrame {
+public class NotesPanel extends JPanel {
 
     private final NoteRepository repository;
+    private final Runnable onBack;
     private final DefaultListModel<Note> listModel = new DefaultListModel<>();
     private final JList<Note> list = new JList<>(listModel);
     private final JTextField titleField = new JTextField();
     private final JTextArea contentArea = new JTextArea();
-    private final JButton lockButton = new JButton();
+    private final JButton lockButton = new JButton("Bloquear");
 
     private Note current;
-    /** Contraseña de la nota desbloqueada en esta sesion (para re-cifrar al guardar). */
     private String sessionPassword;
 
-    public NotesView(NoteRepository repository) {
+    public NotesPanel(NoteRepository repository, Runnable onBack) {
         this.repository = repository;
-        setTitle("Notas");
-        setSize(760, 480);
-        setMinimumSize(new Dimension(620, 400));
-        setLocationRelativeTo(null);
+        this.onBack = onBack;
         buildUi();
         refreshList();
     }
 
     private void buildUi() {
-        getContentPane().setBackground(Theme.BACKGROUND);
         setLayout(new BorderLayout());
+        setBackground(Theme.BACKGROUND);
+        setBorder(new EmptyBorder(12, 12, 12, 12));
 
-        // ----- Panel izquierdo: lista + acciones -----
+        // Cabecera: volver + titulo de seccion.
+        JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        header.setOpaque(false);
+        JButton back = plain(new JButton("← Recordatorios"), e -> onBack.run());
+        JLabel h = new JLabel("Notas");
+        h.setFont(Theme.fontBold(18));
+        h.setForeground(Theme.TEXT);
+        header.add(back);
+        header.add(h);
+        add(header, BorderLayout.NORTH);
+
+        // Izquierda: lista + acciones.
         JPanel left = new JPanel(new BorderLayout());
         left.setBackground(Theme.SURFACE);
-        left.setBorder(new EmptyBorder(12, 12, 12, 12));
-        left.setPreferredSize(new Dimension(240, 0));
+        left.setBorder(new EmptyBorder(8, 8, 8, 8));
 
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         list.setBackground(Theme.SURFACE);
-        list.setFixedCellHeight(48);
+        list.setFixedCellHeight(46);
         list.setCellRenderer(new NoteCell());
         list.addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
@@ -85,10 +93,10 @@ public class NotesView extends JFrame {
         leftButtons.add(plain(new JButton("Eliminar"), e -> deleteNote()));
         left.add(leftButtons, BorderLayout.SOUTH);
 
-        // ----- Panel derecho: editor -----
+        // Derecha: editor.
         JPanel right = new JPanel(new BorderLayout(0, 10));
         right.setBackground(Theme.BACKGROUND);
-        right.setBorder(new EmptyBorder(14, 14, 14, 14));
+        right.setBorder(new EmptyBorder(0, 12, 0, 0));
 
         titleField.setFont(Theme.fontBold(18));
         titleField.setForeground(Theme.TEXT);
@@ -110,16 +118,14 @@ public class NotesView extends JFrame {
         actions.add(primary(new JButton("Guardar"), e -> saveCurrent()));
         right.add(actions, BorderLayout.SOUTH);
 
-        javax.swing.JSplitPane split = new javax.swing.JSplitPane(
-                javax.swing.JSplitPane.HORIZONTAL_SPLIT, left, right);
-        split.setDividerLocation(240);
+        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, right);
+        split.setDividerLocation(220);
         split.setBorder(null);
+        split.setOpaque(false);
         add(split, BorderLayout.CENTER);
 
         setEditorEnabled(false);
     }
-
-    // ----- Acciones -----
 
     private void newNote() {
         Note n = repository.add("Nueva nota", "");
@@ -151,15 +157,11 @@ public class NotesView extends JFrame {
         sessionPassword = null;
         if (sel.isLocked()) {
             String pwd = askPassword("Esta nota está bloqueada. Contraseña:");
-            if (pwd == null) {
-                list.clearSelection();
-                clearEditor();
-                setEditorEnabled(false);
-                return;
-            }
-            if (!NoteCrypto.hash(pwd).equals(sel.getPasswordHash())) {
-                JOptionPane.showMessageDialog(this, "Contraseña incorrecta", "Error",
-                        JOptionPane.ERROR_MESSAGE);
+            if (pwd == null || !NoteCrypto.hash(pwd).equals(sel.getPasswordHash())) {
+                if (pwd != null) {
+                    JOptionPane.showMessageDialog(this, "Contraseña incorrecta", "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                }
                 list.clearSelection();
                 clearEditor();
                 setEditorEnabled(false);
@@ -186,7 +188,8 @@ public class NotesView extends JFrame {
         if (current == null) {
             return;
         }
-        current.setTitle(titleField.getText().trim().isEmpty() ? "Sin título" : titleField.getText().trim());
+        String t = titleField.getText().trim();
+        current.setTitle(t.isEmpty() ? "Sin título" : t);
         current.setContent(contentArea.getText());
         if (current.isLocked() && sessionPassword != null) {
             try {
@@ -200,7 +203,6 @@ public class NotesView extends JFrame {
         repository.update(current);
         refreshList();
         list.setSelectedValue(current, true);
-        JOptionPane.showMessageDialog(this, "Nota guardada", "Notas", JOptionPane.INFORMATION_MESSAGE);
     }
 
     private void toggleLock() {
@@ -208,22 +210,18 @@ public class NotesView extends JFrame {
             return;
         }
         if (current.isLocked()) {
-            // Quitar contraseña: pasa a texto plano.
             current.setLocked(false);
             current.setPasswordHash("");
             current.setCipher("");
             sessionPassword = null;
             repository.update(current);
             lockButton.setText("Bloquear");
-            JOptionPane.showMessageDialog(this, "Contraseña eliminada", "Notas",
-                    JOptionPane.INFORMATION_MESSAGE);
         } else {
             String pwd = askPassword("Nueva contraseña para esta nota:");
             if (pwd == null || pwd.isEmpty()) {
                 return;
             }
-            String confirm = askPassword("Repite la contraseña:");
-            if (!pwd.equals(confirm)) {
+            if (!pwd.equals(askPassword("Repite la contraseña:"))) {
                 JOptionPane.showMessageDialog(this, "Las contraseñas no coinciden", "Error",
                         JOptionPane.ERROR_MESSAGE);
                 return;
@@ -236,8 +234,6 @@ public class NotesView extends JFrame {
                 sessionPassword = pwd;
                 repository.update(current);
                 lockButton.setText("Quitar contraseña");
-                JOptionPane.showMessageDialog(this, "Nota bloqueada", "Notas",
-                        JOptionPane.INFORMATION_MESSAGE);
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(this, "No se pudo cifrar", "Error",
                         JOptionPane.ERROR_MESSAGE);
@@ -245,8 +241,6 @@ public class NotesView extends JFrame {
         }
         refreshList();
     }
-
-    // ----- Helpers -----
 
     private String askPassword(String message) {
         JPasswordField field = new JPasswordField();
@@ -293,7 +287,6 @@ public class NotesView extends JFrame {
         return b;
     }
 
-    /** Celda de la lista: titulo + estado de bloqueo. */
     private static class NoteCell extends DefaultListCellRenderer {
         @Override
         public Component getListCellRendererComponent(JList<?> l, Object value, int index,
@@ -304,7 +297,7 @@ public class NotesView extends JFrame {
             c.setText(n.isLocked() ? title + "   (bloqueada)" : title);
             c.setBorder(new EmptyBorder(6, 12, 6, 12));
             c.setFont(Theme.fontBold(14));
-            c.setForeground(isSelected ? Theme.TEXT : Theme.TEXT);
+            c.setForeground(Theme.TEXT);
             c.setBackground(isSelected ? Theme.SELECTION : Theme.SURFACE);
             return c;
         }

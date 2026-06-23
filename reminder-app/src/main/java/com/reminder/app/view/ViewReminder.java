@@ -10,6 +10,7 @@ import com.reminder.app.service.integration.IntegrationManager;
 import com.reminder.app.service.integration.ReminderIntegration;
 import com.reminder.app.util.PanelRound;
 import com.reminder.app.view.components.Action_button;
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -54,6 +55,11 @@ public final class ViewReminder extends javax.swing.JFrame {
     /** Recordatorios actualmente pintados (para colorear por prioridad). */
     private java.util.List<com.reminder.app.model.Reminder> rowData = java.util.Collections.emptyList();
 
+    /** Navegacion de una sola ventana (recordatorios / notas). */
+    private final java.awt.CardLayout cards = new java.awt.CardLayout();
+    private JPanel cardRoot;
+    private NotesPanel notesPanel;
+
     public ViewReminder(Action_button event_button) {
         this.event_button = event_button;
         initComponents();
@@ -62,8 +68,34 @@ public final class ViewReminder extends javax.swing.JFrame {
         setupTableModel();
         cellRenderTable();
         settingDate();
+        wrapInCards();
         // Ensancha la ventana 10px sobre el tamano calculado por pack().
         setSize(getWidth() + 10, getHeight());
+    }
+
+    /** Envuelve el contenido en un CardLayout para alternar recordatorios/notas. */
+    private void wrapInCards() {
+        cardRoot = new JPanel(cards);
+        getContentPane().remove(jPanel1);
+        cardRoot.add(jPanel1, "reminders");
+        getContentPane().setLayout(new BorderLayout());
+        getContentPane().add(cardRoot, BorderLayout.CENTER);
+        cards.show(cardRoot, "reminders");
+    }
+
+    /** Crea el panel de notas (una vez) y lo agrega como tarjeta. */
+    public void attachNotes(com.reminder.app.repository.NoteRepository repo) {
+        if (notesPanel == null) {
+            notesPanel = new NotesPanel(repo, () -> cards.show(cardRoot, "reminders"));
+            cardRoot.add(notesPanel, "notes");
+        }
+    }
+
+    /** Muestra la tarjeta de notas dentro de la misma ventana. */
+    public void showNotes() {
+        if (notesPanel != null) {
+            cards.show(cardRoot, "notes");
+        }
     }
 
     /** Anade los controles de prioridad y categoria a la barra de fecha/hora. */
@@ -162,13 +194,12 @@ public final class ViewReminder extends javax.swing.JFrame {
      * configuracion externa se muestran solo informativas.
      */
     public void installIntegrationsMenu(IntegrationManager manager, SoundPlayer sound,
-                                        java.util.function.BiConsumer<String, String> filterHandler,
-                                        Runnable openNotes) {
+                                        java.util.function.BiConsumer<String, String> filterHandler) {
         JMenuBar menuBar = new JMenuBar();
         menuBar.setBorder(new EmptyBorder(4, 8, 4, 8));
 
         // Botones de la barra con texto limpio (sin emoji que se ven como cuadros).
-        menuBar.add(barButton("Notas", e -> openNotes.run()));
+        menuBar.add(barButton("Notas", e -> showNotes()));
         menuBar.add(javax.swing.Box.createHorizontalStrut(6));
         menuBar.add(barButton("Integraciones", e -> openIntegrationsDialog(manager)));
         menuBar.add(javax.swing.Box.createHorizontalStrut(6));
