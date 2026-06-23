@@ -3,6 +3,8 @@ package com.reminder.app.controller;
 import com.reminder.app.model.ModelReminderData;
 import com.reminder.app.model.Reminder;
 import com.reminder.app.repository.ReminderRepository;
+import com.reminder.app.service.ReminderScheduler;
+import com.reminder.app.service.TrayNotifier;
 import com.reminder.app.view.ViewReminder;
 import com.reminder.app.view.components.Action_button;
 import java.awt.event.ActionEvent;
@@ -22,16 +24,34 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
 
     private final ViewReminder viewReminder;
     private final ReminderRepository repository;
+    private final ReminderScheduler scheduler;
+    private final TrayNotifier trayNotifier;
 
     /** Lista actual mostrada en la tabla; su orden coincide con las filas. */
     private List<Reminder> currentReminders;
 
     public ControllerReminder() {
         this.repository = new ReminderRepository();
+        this.trayNotifier = new TrayNotifier();
         this.viewReminder = new ViewReminder(this);
         super.init(viewReminder);
         viewReminder.buttonSaveData.addActionListener(this);
         viewReminder.getDeleteAllButton().addActionListener(e -> deleteAll());
+        refreshTable();
+
+        // Arranca el planificador de avisos (revisa cada 30s, primer chequeo inmediato).
+        this.scheduler = new ReminderScheduler(repository, this::onReminderDue);
+        this.scheduler.start();
+    }
+
+    /** Se invoca (en el EDT) cuando un recordatorio alcanza su hora de aviso. */
+    private void onReminderDue(Reminder r) {
+        String body = (r.getDescription() == null || r.getDescription().isBlank())
+                ? "Vence a las " + r.getTime()
+                : r.getDescription();
+        Notifications.getInstance().show(Notifications.Type.INFO,
+                Notifications.Location.BOTTOM_RIGHT, "🔔 " + r.getTitle());
+        trayNotifier.show("🔔 " + r.getTitle(), body);
         refreshTable();
     }
 
