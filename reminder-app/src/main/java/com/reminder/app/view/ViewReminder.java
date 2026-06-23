@@ -47,9 +47,10 @@ public final class ViewReminder extends javax.swing.JFrame {
     private DatePicker datePicker;
     private TimePicker timePicker;
 
-    /** Controles extra: prioridad y categoria. */
+    /** Controles extra: prioridad, categoria y recurrencia. */
     private JComboBox<String> priorityCombo;
     private javax.swing.JTextField categoryField;
+    private JComboBox<String> recurrenceCombo;
     /** Recordatorios actualmente pintados (para colorear por prioridad). */
     private java.util.List<com.reminder.app.model.Reminder> rowData = java.util.Collections.emptyList();
 
@@ -75,11 +76,16 @@ public final class ViewReminder extends javax.swing.JFrame {
         categoryField.putClientProperty("JTextField.placeholderText", "Categoría");
         categoryField.setFont(Theme.fontRegular(13));
 
+        recurrenceCombo = new JComboBox<>(new String[]{"No repetir", "Diaria", "Semanal", "Mensual"});
+        recurrenceCombo.setFont(Theme.fontRegular(13));
+
         // Reorganiza panelRound1 en una fila fluida conservando date/time/combo.
         panelRound1.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 8));
         panelRound1.add(new JLabel("⚑"));
         panelRound1.add(priorityCombo);
         panelRound1.add(categoryField);
+        panelRound1.add(new JLabel("🔁"));
+        panelRound1.add(recurrenceCombo);
         panelRound1.revalidate();
     }
 
@@ -381,10 +387,21 @@ public final class ViewReminder extends javax.swing.JFrame {
         return categoryField.getText().trim();
     }
 
+    public com.reminder.app.model.Reminder.Recurrence getRecurrence() {
+        String s = String.valueOf(recurrenceCombo.getSelectedItem());
+        switch (s) {
+            case "Diaria":  return com.reminder.app.model.Reminder.Recurrence.DIARIA;
+            case "Semanal": return com.reminder.app.model.Reminder.Recurrence.SEMANAL;
+            case "Mensual": return com.reminder.app.model.Reminder.Recurrence.MENSUAL;
+            default:        return com.reminder.app.model.Reminder.Recurrence.NINGUNA;
+        }
+    }
+
     /** Carga un recordatorio en el formulario para editarlo. */
     public void loadIntoForm(String title, String description, LocalDate date,
                              LocalTime time, int advanceMinutes,
-                             com.reminder.app.model.Reminder.Priority priority, String category) {
+                             com.reminder.app.model.Reminder.Priority priority, String category,
+                             com.reminder.app.model.Reminder.Recurrence recurrence) {
         textField1.setText(title == null ? "" : title);
         jTextPane1.setText(description == null ? "" : description);
         if (date != null) {
@@ -397,6 +414,10 @@ public final class ViewReminder extends javax.swing.JFrame {
         priorityCombo.setSelectedItem(priority == com.reminder.app.model.Reminder.Priority.ALTA ? "Alta"
                 : priority == com.reminder.app.model.Reminder.Priority.BAJA ? "Baja" : "Media");
         categoryField.setText(category == null ? "" : category);
+        recurrenceCombo.setSelectedItem(
+                recurrence == com.reminder.app.model.Reminder.Recurrence.DIARIA ? "Diaria"
+                : recurrence == com.reminder.app.model.Reminder.Recurrence.SEMANAL ? "Semanal"
+                : recurrence == com.reminder.app.model.Reminder.Recurrence.MENSUAL ? "Mensual" : "No repetir");
     }
 
     /** Registra un manejador que recibe el indice de la fila seleccionada. */
@@ -472,6 +493,7 @@ public final class ViewReminder extends javax.swing.JFrame {
         jComboBox1.setSelectedIndex(0);
         priorityCombo.setSelectedItem("Media");
         categoryField.setText("");
+        recurrenceCombo.setSelectedItem("No repetir");
         jTable1.clearSelection();
     }
 
@@ -509,6 +531,9 @@ public final class ViewReminder extends javax.swing.JFrame {
             }
             if (!when.isBlank()) {
                 desc = desc.isBlank() ? when : desc + "  ·  " + when;
+            }
+            if (r.isRecurring()) {
+                desc = "🔁 " + desc;
             }
             model.addRow(new Object[]{r.getTitle(), desc, ""});
         }

@@ -121,7 +121,7 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         editingId = r.getId();
         viewReminder.loadIntoForm(r.getTitle(), r.getDescription(),
                 r.getDate(), r.getTime(), r.getAdvanceMinutes(),
-                r.getPriority(), r.getCategory());
+                r.getPriority(), r.getCategory(), r.getRecurrence());
     }
 
     private void loadSelectedForEdit() {
@@ -141,6 +141,7 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         int advance = viewReminder.getAdvanceMinutes();
         Reminder.Priority priority = viewReminder.getPriority();
         String category = viewReminder.getCategory();
+        Reminder.Recurrence recurrence = viewReminder.getRecurrence();
 
         if (title.isEmpty()) {
             warn("El título es obligatorio");
@@ -162,6 +163,7 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
                 existing.setAdvanceMinutes(advance);
                 existing.setPriority(priority);
                 existing.setCategory(category);
+                existing.setRecurrence(recurrence);
                 existing.setNotified(false); // permite que vuelva a avisar con los nuevos datos
                 repository.update(existing);
             }
@@ -174,6 +176,8 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         }
 
         Reminder saved = repository.add(title, description, date, time, advance, priority, category);
+        saved.setRecurrence(recurrence);
+        repository.update(saved);
         integrations.dispatchCreated(saved);
         viewReminder.clearForm();
         refreshTable();

@@ -49,7 +49,13 @@ public class ReminderScheduler {
         LocalDateTime now = LocalDateTime.now();
         for (Reminder r : repository.findAll()) {
             if (!r.isNotified() && !r.notifyAt().isAfter(now)) {
-                r.setNotified(true);
+                if (r.isRecurring()) {
+                    // Reprograma a la proxima ocurrencia futura y sigue activo.
+                    r.setDate(r.nextDateAfter(now));
+                    r.setNotified(false);
+                } else {
+                    r.setNotified(true);
+                }
                 repository.update(r);
                 onDue.accept(r);
             }

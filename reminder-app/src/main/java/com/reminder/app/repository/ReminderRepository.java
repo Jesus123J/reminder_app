@@ -161,7 +161,8 @@ public class ReminderRepository {
                 Integer.toString(r.getAdvanceMinutes()),
                 Boolean.toString(r.isNotified()),
                 r.getPriority().name(),
-                encode(r.getCategory()));
+                encode(r.getCategory()),
+                r.getRecurrence().name());
     }
 
     private Reminder parse(String line) {
@@ -190,6 +191,13 @@ public class ReminderRepository {
             }
             if (parts.length > 8) {
                 r.setCategory(decode(parts[8]));
+            }
+            if (parts.length > 9 && !parts[9].isEmpty()) {
+                try {
+                    r.setRecurrence(Reminder.Recurrence.valueOf(parts[9]));
+                } catch (IllegalArgumentException ignore) {
+                    // valor desconocido: NINGUNA
+                }
             }
             return r;
         } catch (RuntimeException ex) {

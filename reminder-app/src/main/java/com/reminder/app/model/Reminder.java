@@ -19,6 +19,9 @@ public class Reminder {
     /** Nivel de prioridad del recordatorio. */
     public enum Priority { ALTA, MEDIA, BAJA }
 
+    /** Periodicidad de repeticion. */
+    public enum Recurrence { NINGUNA, DIARIA, SEMANAL, MENSUAL }
+
     private final long id;
     private String title;
     private String description;
@@ -32,6 +35,8 @@ public class Reminder {
     private Priority priority = Priority.MEDIA;
     /** Categoria/etiqueta libre (por defecto vacia). */
     private String category = "";
+    /** Periodicidad (por defecto sin repeticion). */
+    private Recurrence recurrence = Recurrence.NINGUNA;
 
     public Reminder(long id, String title, String description,
                     LocalDate date, LocalTime time, int advanceMinutes) {
@@ -122,6 +127,41 @@ public class Reminder {
 
     public void setCategory(String category) {
         this.category = category == null ? "" : category;
+    }
+
+    public Recurrence getRecurrence() {
+        return recurrence == null ? Recurrence.NINGUNA : recurrence;
+    }
+
+    public void setRecurrence(Recurrence recurrence) {
+        this.recurrence = recurrence == null ? Recurrence.NINGUNA : recurrence;
+    }
+
+    /** ¿Se repite? */
+    public boolean isRecurring() {
+        return getRecurrence() != Recurrence.NINGUNA;
+    }
+
+    /**
+     * Calcula la proxima fecha (segun la periodicidad) cuyo vencimiento sea
+     * posterior a {@code now}. Si no se repite, devuelve la fecha actual.
+     */
+    public LocalDate nextDateAfter(LocalDateTime now) {
+        if (!isRecurring() || date == null) {
+            return date;
+        }
+        LocalDate d = date;
+        LocalTime t = time != null ? time : LocalTime.MIDNIGHT;
+        int guard = 0; // evita bucles infinitos ante datos raros
+        while (!LocalDateTime.of(d, t).isAfter(now) && guard++ < 5000) {
+            switch (getRecurrence()) {
+                case DIARIA:  d = d.plusDays(1); break;
+                case SEMANAL: d = d.plusWeeks(1); break;
+                case MENSUAL: d = d.plusMonths(1); break;
+                default: return d;
+            }
+        }
+        return d;
     }
 
     @Override
