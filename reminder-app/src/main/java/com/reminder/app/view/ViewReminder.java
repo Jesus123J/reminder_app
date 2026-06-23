@@ -81,12 +81,19 @@ public final class ViewReminder extends javax.swing.JFrame {
 
         // Reorganiza panelRound1 en una fila fluida conservando date/time/combo.
         panelRound1.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 8));
-        panelRound1.add(new JLabel("⚑"));
+        panelRound1.add(formLabel("Prioridad:"));
         panelRound1.add(priorityCombo);
         panelRound1.add(categoryField);
-        panelRound1.add(new JLabel("🔁"));
+        panelRound1.add(formLabel("Repetir:"));
         panelRound1.add(recurrenceCombo);
         panelRound1.revalidate();
+    }
+
+    private JLabel formLabel(String text) {
+        JLabel l = new JLabel(text);
+        l.setFont(Theme.fontBold(12));
+        l.setForeground(Theme.TEXT_MUTED);
+        return l;
     }
 
     /**
@@ -136,6 +143,19 @@ public final class ViewReminder extends javax.swing.JFrame {
         button.setFont(Theme.fontBold(13));
     }
 
+    /** Crea un boton de la barra superior con estilo uniforme. */
+    private JButton barButton(String text, java.awt.event.ActionListener action) {
+        JButton b = new JButton(text);
+        b.setFont(Theme.fontBold(13));
+        b.setForeground(Theme.TEXT);
+        b.setFocusPainted(false);
+        b.setMargin(new java.awt.Insets(6, 14, 6, 14));
+        if (action != null) {
+            b.addActionListener(action);
+        }
+        return b;
+    }
+
     /**
      * Crea la barra de menu con las opciones de integraciones (extensiones).
      * El usuario activa/desactiva las que puede; las gestionadas por
@@ -146,28 +166,16 @@ public final class ViewReminder extends javax.swing.JFrame {
         JMenuBar menuBar = new JMenuBar();
         menuBar.setBorder(new EmptyBorder(4, 8, 4, 8));
 
-        // Boton (no menu desplegable) que abre un dialogo integrado y centrado.
-        JButton btn = new JButton("⚙  Integraciones");
-        btn.setFont(Theme.fontBold(13));
-        btn.setForeground(Theme.TEXT);
-        btn.setFocusPainted(false);
-        btn.addActionListener(e -> openIntegrationsDialog(manager));
-        menuBar.add(btn);
+        // Botones de la barra con texto limpio (sin emoji que se ven como cuadros).
+        menuBar.add(barButton("Integraciones", e -> openIntegrationsDialog(manager)));
+        menuBar.add(javax.swing.Box.createHorizontalStrut(6));
+        menuBar.add(barButton("Sonido", e -> openSoundDialog(sound)));
+        menuBar.add(javax.swing.Box.createHorizontalStrut(6));
 
-        JButton soundBtn = new JButton("🔊  Sonido");
-        soundBtn.setFont(Theme.fontBold(13));
-        soundBtn.setForeground(Theme.TEXT);
-        soundBtn.setFocusPainted(false);
-        soundBtn.addActionListener(e -> openSoundDialog(sound));
-        menuBar.add(soundBtn);
-
-        JButton themeBtn = new JButton(Theme.dark ? "☀  Claro" : "🌙  Oscuro");
-        themeBtn.setFont(Theme.fontBold(13));
-        themeBtn.setForeground(Theme.TEXT);
-        themeBtn.setFocusPainted(false);
+        final JButton themeBtn = barButton(Theme.dark ? "Tema: Claro" : "Tema: Oscuro", null);
         themeBtn.addActionListener(e -> {
             toggleTheme();
-            themeBtn.setText(Theme.dark ? "☀  Claro" : "🌙  Oscuro");
+            themeBtn.setText(Theme.dark ? "Tema: Claro" : "Tema: Oscuro");
         });
         menuBar.add(themeBtn);
 
@@ -191,7 +199,10 @@ public final class ViewReminder extends javax.swing.JFrame {
         });
         filterCombo.addActionListener(e -> fire.run());
 
-        menuBar.add(new JLabel("🔎 "));
+        JLabel searchLbl = new JLabel("Buscar: ");
+        searchLbl.setFont(Theme.fontRegular(13));
+        searchLbl.setForeground(Theme.TEXT_MUTED);
+        menuBar.add(searchLbl);
         menuBar.add(search);
         menuBar.add(javax.swing.Box.createHorizontalStrut(8));
         menuBar.add(filterCombo);
@@ -551,18 +562,18 @@ public final class ViewReminder extends javax.swing.JFrame {
             String desc = r.getDescription() == null ? "" : r.getDescription().replace("\n", " ");
             String cat = r.getCategory() == null ? "" : r.getCategory();
             if (!cat.isBlank()) {
-                desc = "🏷 " + cat + (desc.isBlank() ? "" : "  ·  " + desc);
+                desc = "[" + cat + "]" + (desc.isBlank() ? "" : "  ·  " + desc);
             }
             if (!when.isBlank()) {
                 desc = desc.isBlank() ? when : desc + "  ·  " + when;
             }
             if (r.isRecurring()) {
-                desc = "🔁 " + desc;
+                desc = "(repite) " + desc;
             }
             // Etiqueta de dia (Hoy/Mañana/...). Como la tabla va ordenada por
             // vencimiento, las filas del mismo grupo quedan juntas.
             String bucket = dayBucket(r.getDate());
-            desc = "🗓 " + bucket + (desc.isBlank() ? "" : "  ·  " + desc);
+            desc = bucket + "  ·  " + desc;
             model.addRow(new Object[]{r.getTitle(), desc, ""});
         }
         // Reaplicar render/editor de columnas tras cambiar el modelo.
