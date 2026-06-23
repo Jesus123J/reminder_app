@@ -242,10 +242,14 @@ public final class ViewReminder extends javax.swing.JFrame {
         menuBar.add(filterCombo);
 
         setJMenuBar(menuBar);
-        // Recalcula el tamano incluyendo la barra (evita recortes), conserva el
-        // extra de ancho y recentra la ventana.
+        // Recalcula el tamano incluyendo la barra (evita recortes).
         pack();
-        setSize(getWidth() + 10, getHeight());
+        // La ventana debe ser al menos tan ancha como la barra de botones, o
+        // estos se ocultan. Ajustamos tamano y minimo a ese ancho.
+        int barWidth = menuBar.getPreferredSize().width + 40;
+        int width = Math.max(getWidth() + 10, barWidth);
+        setSize(width, getHeight());
+        setMinimumSize(new Dimension(barWidth, getHeight()));
         setLocationRelativeTo(null);
     }
 
