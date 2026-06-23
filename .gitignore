@@ -40,3 +40,7 @@ client_secret.json
 **/client_secret.json
 tokens/
 **/tokens/
+
+# Exportaciones .ics generadas en runtime
+calendar-export/
+**/calendar-export/
