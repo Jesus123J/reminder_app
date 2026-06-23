@@ -129,6 +129,16 @@ public final class ViewReminder extends javax.swing.JFrame {
         soundBtn.addActionListener(e -> openSoundDialog(sound));
         menuBar.add(soundBtn);
 
+        JButton themeBtn = new JButton(Theme.dark ? "☀  Claro" : "🌙  Oscuro");
+        themeBtn.setFont(Theme.fontBold(13));
+        themeBtn.setForeground(Theme.TEXT);
+        themeBtn.setFocusPainted(false);
+        themeBtn.addActionListener(e -> {
+            toggleTheme();
+            themeBtn.setText(Theme.dark ? "☀  Claro" : "🌙  Oscuro");
+        });
+        menuBar.add(themeBtn);
+
         menuBar.add(javax.swing.Box.createHorizontalGlue());
 
         setJMenuBar(menuBar);
@@ -137,6 +147,23 @@ public final class ViewReminder extends javax.swing.JFrame {
         pack();
         setSize(getWidth() + 10, getHeight());
         setLocationRelativeTo(null);
+    }
+
+    /** Alterna entre tema claro y oscuro en caliente y re-tematiza la UI. */
+    private void toggleTheme() {
+        boolean newDark = !Theme.dark;
+        if (newDark) {
+            com.formdev.flatlaf.FlatDarkLaf.setup();
+        } else {
+            com.formdev.flatlaf.FlatLightLaf.setup();
+        }
+        Theme.setDarkPreferred(newDark);
+        Theme.applyMode(newDark);
+        Theme.applyGlobalDefaults();
+        javax.swing.SwingUtilities.updateComponentTreeUI(this);
+        applyTheme();
+        cellRenderTable();
+        repaint();
     }
 
     /** Dialogo para activar/silenciar el sonido y elegir un .wav. */
