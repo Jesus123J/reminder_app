@@ -559,10 +559,35 @@ public final class ViewReminder extends javax.swing.JFrame {
             if (r.isRecurring()) {
                 desc = "🔁 " + desc;
             }
+            // Etiqueta de dia (Hoy/Mañana/...). Como la tabla va ordenada por
+            // vencimiento, las filas del mismo grupo quedan juntas.
+            String bucket = dayBucket(r.getDate());
+            desc = "🗓 " + bucket + (desc.isBlank() ? "" : "  ·  " + desc);
             model.addRow(new Object[]{r.getTitle(), desc, ""});
         }
         // Reaplicar render/editor de columnas tras cambiar el modelo.
         cellRenderTable();
+    }
+
+    /** Clasifica una fecha en un grupo legible relativo a hoy. */
+    private String dayBucket(LocalDate date) {
+        if (date == null) {
+            return "Sin fecha";
+        }
+        LocalDate today = LocalDate.now();
+        if (date.isBefore(today)) {
+            return "Vencido";
+        }
+        if (date.equals(today)) {
+            return "Hoy";
+        }
+        if (date.equals(today.plusDays(1))) {
+            return "Mañana";
+        }
+        if (!date.isAfter(today.plusDays(7))) {
+            return "Esta semana";
+        }
+        return "Después";
     }
 
     /** Color del texto segun la prioridad del recordatorio de esa fila. */
