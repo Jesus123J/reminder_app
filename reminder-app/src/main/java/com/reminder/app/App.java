@@ -1,22 +1,24 @@
 package com.reminder.app;
 
-import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatLightLaf;
 import com.reminder.app.config.AppConfig;
 import com.reminder.app.controller.ControllerReminder;
-import com.reminder.app.view.ViewReminder;
-import javax.security.auth.login.AppConfigurationEntry;
+import javax.swing.SwingUtilities;
 
 /**
- * Hello world!
+ * Punto de entrada de la aplicacion de recordatorios.
+ *
+ * Configura el Look and Feel (FlatLaf), asegura que el almacenamiento exista
+ * y arranca el controlador principal dentro del Event Dispatch Thread (EDT),
+ * tal como exige Swing para construir y manipular la interfaz de forma segura.
  */
 public class App {
 
     public static void main(String[] args) {
         FlatLightLaf.setup();
         AppConfig.createDocumentData();
-        AppConfig config = new AppConfig();
-        //Controller main
-        ControllerReminder controllerReminder = new ControllerReminder();
+
+        // Toda la UI de Swing debe construirse en el EDT.
+        SwingUtilities.invokeLater(ControllerReminder::new);
     }
 }

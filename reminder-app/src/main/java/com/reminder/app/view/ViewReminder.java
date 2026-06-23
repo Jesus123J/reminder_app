@@ -91,7 +91,7 @@ public final class ViewReminder extends javax.swing.JFrame {
         button1 = new com.reminder.app.util.Button();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
-        setTitle("rimender-java");
+        setTitle("Recordatorios");
 
         jPanel1.setBackground(new java.awt.Color(255, 255, 255));
 
@@ -246,7 +246,7 @@ public final class ViewReminder extends javax.swing.JFrame {
 
         button1.setBackground(new java.awt.Color(255, 204, 51));
         button1.setIcon(new javax.swing.ImageIcon(getClass().getResource("/icon-button/delete_all_button.png"))); // NOI18N
-        button1.setText("ELIMNAR TODO");
+        button1.setText("ELIMINAR TODO");
         button1.setFont(new java.awt.Font("Sitka Text", 0, 12)); // NOI18N
         button1.setHorizontalTextPosition(javax.swing.SwingConstants.LEFT);
 
