@@ -5,6 +5,7 @@ import com.reminder.app.model.Reminder;
 import com.reminder.app.repository.ReminderRepository;
 import com.reminder.app.service.ReminderScheduler;
 import com.reminder.app.service.TrayNotifier;
+import com.reminder.app.service.integration.IntegrationManager;
 import com.reminder.app.view.ViewReminder;
 import com.reminder.app.view.components.Action_button;
 import java.awt.event.ActionEvent;
@@ -26,6 +27,7 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
     private final ReminderRepository repository;
     private final ReminderScheduler scheduler;
     private final TrayNotifier trayNotifier;
+    private final IntegrationManager integrations;
 
     /** Lista actual mostrada en la tabla; su orden coincide con las filas. */
     private List<Reminder> currentReminders;
@@ -33,6 +35,8 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
     public ControllerReminder() {
         this.repository = new ReminderRepository();
         this.trayNotifier = new TrayNotifier();
+        this.integrations = new IntegrationManager();
+        registerIntegrations();
         this.viewReminder = new ViewReminder(this);
         super.init(viewReminder);
         viewReminder.buttonSaveData.addActionListener(this);
@@ -42,6 +46,17 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         // Arranca el planificador de avisos (revisa cada 30s, primer chequeo inmediato).
         this.scheduler = new ReminderScheduler(repository, this::onReminderDue);
         this.scheduler.start();
+    }
+
+    /**
+     * Registra las integraciones externas disponibles. Para anadir una nueva
+     * conexion (Google Calendar, Outlook, email, webhook...) basta con
+     * implementar {@link com.reminder.app.service.integration.ReminderIntegration}
+     * y registrarla aqui.
+     */
+    private void registerIntegrations() {
+        // Las implementaciones concretas se registran en sus propias ramas.
+        // Ejemplo: integrations.register(new GoogleCalendarIntegration());
     }
 
     /** Se invoca (en el EDT) cuando un recordatorio alcanza su hora de aviso. */
@@ -84,7 +99,8 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
             return;
         }
 
-        repository.add(title, description, date, time, advance);
+        Reminder saved = repository.add(title, description, date, time, advance);
+        integrations.dispatchCreated(saved);
         viewReminder.clearForm();
         refreshTable();
         Notifications.getInstance().show(Notifications.Type.SUCCESS,
@@ -103,6 +119,7 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         }
         Reminder target = currentReminders.get(index);
         repository.deleteById(target.getId());
+        integrations.dispatchDeleted(target);
         refreshTable();
         Notifications.getInstance().show(Notifications.Type.SUCCESS,
                 Notifications.Location.BOTTOM_RIGHT, "Recordatorio eliminado");
