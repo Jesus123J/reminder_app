@@ -57,12 +57,19 @@ public final class ViewReminder extends javax.swing.JFrame {
     private void applyTheme() {
         getContentPane().setBackground(Theme.BACKGROUND);
         jPanel1.setBackground(Theme.BACKGROUND);
+        // Respiracion alrededor del contenido (look moderno).
+        jPanel1.setBorder(new EmptyBorder(18, 18, 18, 18));
 
         // Tarjetas con superficie clara y borde sutil ya redondeado.
         for (PanelRound panel : new PanelRound[]{panelRound1, panelRound2}) {
             panel.setBackground(Theme.SURFACE);
         }
         panelRound3.setBackground(Theme.BACKGROUND);
+
+        // Tabla dentro de una "tarjeta" limpia: sin borde duro y con scroll suave.
+        jScrollPane1.setBorder(new EmptyBorder(0, 0, 0, 0));
+        jScrollPane1.getViewport().setBackground(Theme.BACKGROUND);
+        jScrollPane1.setBackground(Theme.BACKGROUND);
 
         // Campos de fecha/hora/combo: texto oscuro legible sobre la tarjeta.
         for (Component c : new Component[]{jFormattedDateStart, jFormattedTextField1, jComboBox1}) {
