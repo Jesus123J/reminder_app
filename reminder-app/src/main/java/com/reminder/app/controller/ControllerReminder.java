@@ -4,6 +4,7 @@ import com.reminder.app.model.ModelReminderData;
 import com.reminder.app.model.Reminder;
 import com.reminder.app.repository.ReminderRepository;
 import com.reminder.app.service.ReminderScheduler;
+import com.reminder.app.service.SoundPlayer;
 import com.reminder.app.service.TrayNotifier;
 import com.reminder.app.service.integration.GoogleCalendarIntegration;
 import com.reminder.app.service.integration.GoogleCalendarLinkIntegration;
@@ -30,6 +31,7 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
     private final ReminderScheduler scheduler;
     private final TrayNotifier trayNotifier;
     private final IntegrationManager integrations;
+    private final SoundPlayer soundPlayer = new SoundPlayer();
 
     /** Lista actual mostrada en la tabla; su orden coincide con las filas. */
     private List<Reminder> currentReminders;
@@ -48,7 +50,7 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         viewReminder.getDeleteAllButton().addActionListener(e -> deleteAll());
         viewReminder.getEditButton().addActionListener(e -> loadSelectedForEdit());
         viewReminder.setRowSelectionHandler(this::loadForEdit);
-        viewReminder.installIntegrationsMenu(integrations);
+        viewReminder.installIntegrationsMenu(integrations, soundPlayer);
         refreshTable();
 
         // Arranca el planificador de avisos (revisa cada 30s, primer chequeo inmediato).
@@ -84,7 +86,7 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         // Notificacion NATIVA de Windows (bandeja) + sonido. Es la que aparece
         // en el sistema aunque la ventana no tenga el foco.
         trayNotifier.show("Recordatorio: " + r.getTitle(), body);
-        java.awt.Toolkit.getDefaultToolkit().beep();
+        soundPlayer.play();
         refreshTable();
     }
 

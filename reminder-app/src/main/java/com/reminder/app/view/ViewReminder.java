@@ -5,6 +5,7 @@
 package com.reminder.app.view;
 
 import com.reminder.app.config.Theme;
+import com.reminder.app.service.SoundPlayer;
 import com.reminder.app.service.integration.IntegrationManager;
 import com.reminder.app.service.integration.ReminderIntegration;
 import com.reminder.app.util.PanelRound;
@@ -21,6 +22,7 @@ import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JMenuBar;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTable;
 import javax.swing.border.EmptyBorder;
@@ -108,7 +110,7 @@ public final class ViewReminder extends javax.swing.JFrame {
      * El usuario activa/desactiva las que puede; las gestionadas por
      * configuracion externa se muestran solo informativas.
      */
-    public void installIntegrationsMenu(IntegrationManager manager) {
+    public void installIntegrationsMenu(IntegrationManager manager, SoundPlayer sound) {
         JMenuBar menuBar = new JMenuBar();
         menuBar.setBorder(new EmptyBorder(4, 8, 4, 8));
 
@@ -119,6 +121,14 @@ public final class ViewReminder extends javax.swing.JFrame {
         btn.setFocusPainted(false);
         btn.addActionListener(e -> openIntegrationsDialog(manager));
         menuBar.add(btn);
+
+        JButton soundBtn = new JButton("🔊  Sonido");
+        soundBtn.setFont(Theme.fontBold(13));
+        soundBtn.setForeground(Theme.TEXT);
+        soundBtn.setFocusPainted(false);
+        soundBtn.addActionListener(e -> openSoundDialog(sound));
+        menuBar.add(soundBtn);
+
         menuBar.add(javax.swing.Box.createHorizontalGlue());
 
         setJMenuBar(menuBar);
@@ -127,6 +137,46 @@ public final class ViewReminder extends javax.swing.JFrame {
         pack();
         setSize(getWidth() + 10, getHeight());
         setLocationRelativeTo(null);
+    }
+
+    /** Dialogo para activar/silenciar el sonido y elegir un .wav. */
+    private void openSoundDialog(SoundPlayer sound) {
+        JCheckBox enabled = new JCheckBox("Activar sonido de aviso", sound.isEnabled());
+        JLabel current = new JLabel(soundFileLabel(sound));
+        JButton choose = new JButton("Elegir .wav...");
+        choose.addActionListener(e -> {
+            javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
+            fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Audio WAV", "wav"));
+            if (fc.showOpenDialog(this) == javax.swing.JFileChooser.APPROVE_OPTION) {
+                sound.setSoundFile(fc.getSelectedFile().getAbsolutePath());
+                current.setText(soundFileLabel(sound));
+            }
+        });
+        JButton useBeep = new JButton("Usar beep");
+        useBeep.addActionListener(e -> {
+            sound.setSoundFile("");
+            current.setText(soundFileLabel(sound));
+        });
+        JButton test = new JButton("Probar");
+        test.addActionListener(e -> sound.play());
+
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(new EmptyBorder(4, 4, 4, 4));
+        enabled.addActionListener(e -> sound.setEnabled(enabled.isSelected()));
+        for (java.awt.Component c : new java.awt.Component[]{enabled, current, choose, useBeep, test}) {
+            ((javax.swing.JComponent) c).setAlignmentX(Component.LEFT_ALIGNMENT);
+            panel.add(c);
+            panel.add(javax.swing.Box.createVerticalStrut(8));
+        }
+        JOptionPane.showMessageDialog(this, panel, "Sonido", JOptionPane.PLAIN_MESSAGE);
+    }
+
+    private String soundFileLabel(SoundPlayer sound) {
+        String f = sound.getSoundFile();
+        return (f == null || f.isEmpty())
+                ? "Sonido actual: beep del sistema"
+                : "Sonido actual: " + new java.io.File(f).getName();
     }
 
     /** Dialogo modal e integrado para activar/desactivar las extensiones. */
