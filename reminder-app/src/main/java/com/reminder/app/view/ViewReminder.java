@@ -141,7 +141,8 @@ public final class ViewReminder extends javax.swing.JFrame {
      * El usuario activa/desactiva las que puede; las gestionadas por
      * configuracion externa se muestran solo informativas.
      */
-    public void installIntegrationsMenu(IntegrationManager manager, SoundPlayer sound) {
+    public void installIntegrationsMenu(IntegrationManager manager, SoundPlayer sound,
+                                        java.util.function.BiConsumer<String, String> filterHandler) {
         JMenuBar menuBar = new JMenuBar();
         menuBar.setBorder(new EmptyBorder(4, 8, 4, 8));
 
@@ -171,6 +172,29 @@ public final class ViewReminder extends javax.swing.JFrame {
         menuBar.add(themeBtn);
 
         menuBar.add(javax.swing.Box.createHorizontalGlue());
+
+        // Busqueda + filtro (a la derecha).
+        JComboBox<String> filterCombo = new JComboBox<>(
+                new String[]{"Todos", "Hoy", "Próximos", "Vencidos"});
+        filterCombo.setFont(Theme.fontRegular(13));
+        javax.swing.JTextField search = new javax.swing.JTextField(12);
+        search.putClientProperty("JTextField.placeholderText", "Buscar...");
+        search.setFont(Theme.fontRegular(13));
+        search.setMaximumSize(new Dimension(200, 30));
+
+        Runnable fire = () -> filterHandler.accept(
+                search.getText().trim(), String.valueOf(filterCombo.getSelectedItem()));
+        search.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            public void insertUpdate(javax.swing.event.DocumentEvent e) { fire.run(); }
+            public void removeUpdate(javax.swing.event.DocumentEvent e) { fire.run(); }
+            public void changedUpdate(javax.swing.event.DocumentEvent e) { fire.run(); }
+        });
+        filterCombo.addActionListener(e -> fire.run());
+
+        menuBar.add(new JLabel("🔎 "));
+        menuBar.add(search);
+        menuBar.add(javax.swing.Box.createHorizontalStrut(8));
+        menuBar.add(filterCombo);
 
         setJMenuBar(menuBar);
         // Recalcula el tamano incluyendo la barra (evita recortes), conserva el

@@ -42,6 +42,10 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
     /** Id del recordatorio en edicion; null si se esta creando uno nuevo. */
     private Long editingId;
 
+    /** Estado de busqueda/filtro de la tabla. */
+    private String searchText = "";
+    private String filterKey = "Todos";
+
     public ControllerReminder() {
         this.repository = new ReminderRepository();
         this.trayNotifier = new TrayNotifier();
@@ -54,7 +58,7 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         viewReminder.getEditButton().addActionListener(e -> loadSelectedForEdit());
         viewReminder.setRowSelectionHandler(this::loadForEdit);
         viewReminder.installSnoozeMenu(this::snooze);
-        viewReminder.installIntegrationsMenu(integrations, soundPlayer);
+        viewReminder.installIntegrationsMenu(integrations, soundPlayer, this::applyFilter);
         trayNotifier.enableMinimizeToTray(viewReminder);
         refreshTable();
 
@@ -100,9 +104,48 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
 
     /** Recarga la tabla desde el repositorio. */
     private void refreshTable() {
-        
-        currentReminders = repository.findAll();
+        java.time.LocalDate today = java.time.LocalDate.now();
+        String q = searchText.toLowerCase();
+        java.util.List<Reminder> filtered = new java.util.ArrayList<>();
+        for (Reminder r : repository.findAll()) {
+            // Filtro de texto (titulo + descripcion + categoria).
+            if (!q.isEmpty()) {
+                String hay = (safe(r.getTitle()) + " " + safe(r.getDescription())
+                        + " " + safe(r.getCategory())).toLowerCase();
+                if (!hay.contains(q)) {
+                    continue;
+                }
+            }
+            // Filtro por fecha.
+            java.time.LocalDate d = r.getDate();
+            switch (filterKey) {
+                case "Hoy":
+                    if (d == null || !d.equals(today)) { continue; }
+                    break;
+                case "Próximos":
+                    if (d == null || d.isBefore(today)) { continue; }
+                    break;
+                case "Vencidos":
+                    if (r.isNotified() || !r.dueAt().isBefore(java.time.LocalDateTime.now())) { continue; }
+                    break;
+                default:
+                    break; // "Todos"
+            }
+            filtered.add(r);
+        }
+        currentReminders = filtered;
         viewReminder.loadReminders(currentReminders);
+    }
+
+    private String safe(String s) {
+        return s == null ? "" : s;
+    }
+
+    /** Actualiza el filtro de busqueda/fecha y refresca. */
+    private void applyFilter(String text, String key) {
+        this.searchText = text == null ? "" : text;
+        this.filterKey = key == null ? "Todos" : key;
+        refreshTable();
     }
 
     @Override
