@@ -6,7 +6,6 @@ import com.reminder.app.repository.NoteRepository;
 import com.reminder.app.util.NoteCrypto;
 import java.awt.BorderLayout;
 import java.awt.Component;
-import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -27,20 +26,15 @@ import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTextField;
-import javax.swing.JTextPane;
 import javax.swing.ListSelectionModel;
 import javax.swing.border.EmptyBorder;
-import javax.swing.text.html.HTML;
-import javax.swing.text.html.HTMLDocument;
-import javax.swing.text.html.HTMLEditorKit;
 
 /**
- * Panel de notas tipo "Apple Notes" con editor enriquecido.
+ * Panel de notas con **pizarra libre** ({@link FreeBoardPanel}).
  *
- * El contenido es HTML (JTextPane + HTMLEditorKit): permite escribir, insertar
- * imagenes en linea, dibujar (se inserta como imagen) y adjuntar audio como
- * enlace reproducible. Tambien se pueden arrastrar archivos al editor. Cada nota
- * puede bloquearse con contraseña (contenido cifrado con AES).
+ * Cada nota es un lienzo donde se colocan cajas de texto, imagenes y audio que
+ * se mueven y redimensionan libremente. Se puede bloquear con contraseña
+ * (contenido cifrado con AES).
  *
  * @author Jesus Gutierrez
  */
@@ -53,11 +47,12 @@ public class NotesPanel extends JPanel {
     private final DefaultListModel<Note> listModel = new DefaultListModel<>();
     private final JList<Note> list = new JList<>(listModel);
     private final JTextField titleField = new JTextField();
-    private final JTextPane editor = new JTextPane();
+    private final FreeBoardPanel board = new FreeBoardPanel();
     private final JButton lockButton = new JButton("Bloquear");
 
     private Note current;
     private String sessionPassword;
+    private int placeOffset = 0; // para no apilar elementos nuevos exactamente
 
     public NotesPanel(NoteRepository repository, Runnable onBack) {
         this.repository = repository;
@@ -80,7 +75,7 @@ public class NotesPanel extends JPanel {
         header.add(h);
         add(header, BorderLayout.NORTH);
 
-        // Izquierda: lista + acciones.
+        // Izquierda: lista.
         JPanel left = new JPanel(new BorderLayout());
         left.setBackground(Theme.SURFACE);
         left.setBorder(new EmptyBorder(8, 8, 8, 8));
@@ -102,7 +97,7 @@ public class NotesPanel extends JPanel {
         leftButtons.add(plain(new JButton("Eliminar"), e -> deleteNote()));
         left.add(leftButtons, BorderLayout.SOUTH);
 
-        // Derecha: editor enriquecido.
+        // Derecha: titulo + pizarra + barra.
         JPanel right = new JPanel(new BorderLayout(0, 8));
         right.setBackground(Theme.BACKGROUND);
         right.setBorder(new EmptyBorder(0, 12, 0, 0));
@@ -112,31 +107,18 @@ public class NotesPanel extends JPanel {
         titleField.putClientProperty("JTextField.placeholderText", "Título de la nota");
         right.add(titleField, BorderLayout.NORTH);
 
-        editor.setEditorKit(new HTMLEditorKit());
-        editor.setContentType("text/html");
-        editor.setFont(Theme.fontRegular(14));
-        editor.setBorder(new EmptyBorder(8, 8, 8, 8));
-        editor.addHyperlinkListener(e -> {
-            if (e.getEventType() == javax.swing.event.HyperlinkEvent.EventType.ACTIVATED
-                    && e.getURL() != null) {
-                openUrl(e.getURL());
-            }
-        });
-        enableFileDrop(editor);
-        JScrollPane editorScroll = new JScrollPane(editor);
-        editorScroll.setBorder(BorderFactory.createLineBorder(Theme.LINE));
-        right.add(editorScroll, BorderLayout.CENTER);
+        JScrollPane boardScroll = new JScrollPane(board);
+        boardScroll.setBorder(BorderFactory.createLineBorder(Theme.LINE));
+        boardScroll.getVerticalScrollBar().setUnitIncrement(16);
+        right.add(boardScroll, BorderLayout.CENTER);
+        enableFileDrop(board);
 
-        // Barra de herramientas del editor + acciones.
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         toolbar.setOpaque(false);
-        JButton bold = plain(new JButton("N"), null);
-        bold.setFont(Theme.fontBold(14));
-        bold.addActionListener(new javax.swing.text.StyledEditorKit.BoldAction());
-        toolbar.add(bold);
-        toolbar.add(plain(new JButton("Imagen"), e -> insertImage()));
-        toolbar.add(plain(new JButton("Dibujar"), e -> insertDrawing()));
-        toolbar.add(plain(new JButton("Audio"), e -> insertAudio()));
+        toolbar.add(plain(new JButton("+ Texto"), e -> addTextBox()));
+        toolbar.add(plain(new JButton("+ Imagen"), e -> addImageFromChooser()));
+        toolbar.add(plain(new JButton("+ Dibujar"), e -> addDrawing()));
+        toolbar.add(plain(new JButton("+ Audio"), e -> addAudioFromChooser()));
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         actions.setOpaque(false);
@@ -210,9 +192,7 @@ public class NotesPanel extends JPanel {
         }
         current = sel;
         titleField.setText(sel.getTitle());
-        editor.setText(sel.getContent() == null || sel.getContent().isEmpty()
-                ? "<html><body></body></html>" : sel.getContent());
-        editor.setCaretPosition(0);
+        board.load(sel.getContent());
         setEditorEnabled(true);
         lockButton.setText(sel.isLocked() ? "Quitar contraseña" : "Bloquear");
     }
@@ -223,7 +203,7 @@ public class NotesPanel extends JPanel {
         }
         String t = titleField.getText().trim();
         current.setTitle(t.isEmpty() ? "Sin título" : t);
-        current.setContent(editor.getText());
+        current.setContent(board.serialize());
         if (current.isLocked() && sessionPassword != null) {
             try {
                 current.setCipher(NoteCrypto.encrypt(current.getContent(), sessionPassword));
@@ -236,11 +216,28 @@ public class NotesPanel extends JPanel {
         repository.update(current);
         refreshList();
         list.setSelectedValue(current, true);
+        JOptionPane.showMessageDialog(this, "Nota guardada", "Notas", JOptionPane.INFORMATION_MESSAGE);
     }
 
-    // ----- Contenido enriquecido -----
+    // ----- Elementos de la pizarra -----
 
-    private void insertImage() {
+    private int nextX() {
+        placeOffset = (placeOffset + 1) % 8;
+        return 40 + placeOffset * 24;
+    }
+
+    private int nextY() {
+        return 40 + placeOffset * 20;
+    }
+
+    private void addTextBox() {
+        if (!ensureNote()) {
+            return;
+        }
+        board.addText(nextX(), nextY(), 220, 130, "");
+    }
+
+    private void addImageFromChooser() {
         if (!ensureNote()) {
             return;
         }
@@ -250,12 +247,27 @@ public class NotesPanel extends JPanel {
         if (fc.showOpenDialog(this) == javax.swing.JFileChooser.APPROVE_OPTION) {
             Path dest = copyToAssets(fc.getSelectedFile());
             if (dest != null) {
-                insertImageHtml(dest);
+                board.addImage(nextX(), nextY(), 280, 220, dest.toString());
             }
         }
     }
 
-    private void insertDrawing() {
+    private void addAudioFromChooser() {
+        if (!ensureNote()) {
+            return;
+        }
+        javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
+        fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
+                "Audio", "wav", "mp3", "m4a", "ogg"));
+        if (fc.showOpenDialog(this) == javax.swing.JFileChooser.APPROVE_OPTION) {
+            Path dest = copyToAssets(fc.getSelectedFile());
+            if (dest != null) {
+                board.addAudio(nextX(), nextY(), 220, 70, dest.toString());
+            }
+        }
+    }
+
+    private void addDrawing() {
         if (!ensureNote()) {
             return;
         }
@@ -266,60 +278,16 @@ public class NotesPanel extends JPanel {
         try {
             Path dir = Paths.get(ASSETS_DIR, String.valueOf(current.getId()));
             Files.createDirectories(dir);
-            Path dest = dir.resolve("dibujo-" + System.identityHashCode(img) + ".png");
+            Path dest = dir.resolve("dibujo-" + System.nanoTime() + ".png");
             ImageIO.write(img, "png", dest.toFile());
             current.getAttachments().add(dest.toString());
-            insertImageHtml(dest);
+            board.addImage(nextX(), nextY(), 300, 230, dest.toString());
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "No se pudo guardar el dibujo", "Error",
                     JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    private void insertAudio() {
-        if (!ensureNote()) {
-            return;
-        }
-        javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
-        fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
-                "Audio", "wav", "mp3", "m4a", "ogg"));
-        if (fc.showOpenDialog(this) == javax.swing.JFileChooser.APPROVE_OPTION) {
-            Path dest = copyToAssets(fc.getSelectedFile());
-            if (dest != null) {
-                insertAudioHtml(dest);
-            }
-        }
-    }
-
-    private void insertImageHtml(Path dest) {
-        try {
-            String url = dest.toUri().toURL().toString();
-            insertHtmlAtCaret("<img src='" + url + "' width='320'><br>", HTML.Tag.IMG);
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "No se pudo insertar la imagen", "Error",
-                    JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    private void insertAudioHtml(Path dest) {
-        try {
-            String url = dest.toUri().toURL().toString();
-            insertHtmlAtCaret("<p>&#9654; <a href='" + url + "'>"
-                    + esc(dest.getFileName().toString()) + "</a></p>", HTML.Tag.A);
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "No se pudo insertar el audio", "Error",
-                    JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    private void insertHtmlAtCaret(String html, HTML.Tag tag) throws Exception {
-        HTMLDocument doc = (HTMLDocument) editor.getDocument();
-        HTMLEditorKit kit = (HTMLEditorKit) editor.getEditorKit();
-        int pos = editor.getCaretPosition();
-        kit.insertHTML(doc, pos, html, 0, 0, tag);
-    }
-
-    /** Permite arrastrar archivos al editor: imagen -> en linea; audio -> enlace. */
     @SuppressWarnings("unchecked")
     private void enableFileDrop(Component comp) {
         new java.awt.dnd.DropTarget(comp, new java.awt.dnd.DropTargetAdapter() {
@@ -332,16 +300,18 @@ public class NotesPanel extends JPanel {
                     if (!ensureNote()) {
                         return;
                     }
+                    java.awt.Point at = ev.getLocation();
                     for (File f : files) {
                         Path dest = copyToAssets(f);
                         if (dest == null) {
                             continue;
                         }
                         if (isImage(f.getName())) {
-                            insertImageHtml(dest);
+                            board.addImage(at.x, at.y, 280, 220, dest.toString());
                         } else {
-                            insertAudioHtml(dest);
+                            board.addAudio(at.x, at.y, 220, 70, dest.toString());
                         }
+                        at = new java.awt.Point(at.x + 20, at.y + 20);
                     }
                 } catch (Exception ignore) {
                     // drop invalido
@@ -351,7 +321,7 @@ public class NotesPanel extends JPanel {
     }
 
     private Path copyToAssets(File src) {
-        if (src == null || !src.isFile()) {
+        if (src == null || !src.isFile() || current == null) {
             return null;
         }
         try {
@@ -382,16 +352,6 @@ public class NotesPanel extends JPanel {
         return true;
     }
 
-    private void openUrl(java.net.URL url) {
-        try {
-            if (java.awt.Desktop.isDesktopSupported()) {
-                java.awt.Desktop.getDesktop().open(new File(url.toURI()));
-            }
-        } catch (Exception ex) {
-            // no se pudo abrir
-        }
-    }
-
     // ----- Bloqueo -----
 
     private void toggleLock() {
@@ -416,7 +376,7 @@ public class NotesPanel extends JPanel {
                 return;
             }
             try {
-                current.setContent(editor.getText());
+                current.setContent(board.serialize());
                 current.setCipher(NoteCrypto.encrypt(current.getContent(), pwd));
                 current.setPasswordHash(NoteCrypto.hash(pwd));
                 current.setLocked(true);
@@ -453,17 +413,13 @@ public class NotesPanel extends JPanel {
 
     private void clearEditor() {
         titleField.setText("");
-        editor.setText("<html><body></body></html>");
+        board.load("");
     }
 
     private void setEditorEnabled(boolean enabled) {
         titleField.setEnabled(enabled);
-        editor.setEnabled(enabled);
+        board.setEnabled(enabled);
         lockButton.setEnabled(enabled);
-    }
-
-    private String esc(String s) {
-        return s == null ? "" : s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     private JButton primary(JButton b, java.awt.event.ActionListener a) {
