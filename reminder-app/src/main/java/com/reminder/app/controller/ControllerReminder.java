@@ -43,6 +43,7 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         super.init(viewReminder);
         viewReminder.buttonSaveData.addActionListener(this);
         viewReminder.getDeleteAllButton().addActionListener(e -> deleteAll());
+        viewReminder.installIntegrationsMenu(integrations);
         refreshTable();
 
         // Arranca el planificador de avisos (revisa cada 30s, primer chequeo inmediato).

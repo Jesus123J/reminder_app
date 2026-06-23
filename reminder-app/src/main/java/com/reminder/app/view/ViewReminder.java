@@ -5,6 +5,8 @@
 package com.reminder.app.view;
 
 import com.reminder.app.config.Theme;
+import com.reminder.app.service.integration.IntegrationManager;
+import com.reminder.app.service.integration.ReminderIntegration;
 import com.reminder.app.util.PanelRound;
 import com.reminder.app.view.components.Action_button;
 import java.awt.Color;
@@ -12,8 +14,13 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JTable;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -93,6 +100,66 @@ public final class ViewReminder extends javax.swing.JFrame {
         button.setBackground(bg);
         button.setForeground(fg);
         button.setFont(Theme.fontBold(13));
+    }
+
+    /**
+     * Crea la barra de menu con las opciones de integraciones (extensiones).
+     * El usuario activa/desactiva las que puede; las gestionadas por
+     * configuracion externa se muestran solo informativas.
+     */
+    public void installIntegrationsMenu(IntegrationManager manager) {
+        JMenuBar menuBar = new JMenuBar();
+        JMenu menu = new JMenu("⚙  Integraciones");
+        menu.setFont(Theme.fontBold(13));
+
+        for (ReminderIntegration integration : manager.getIntegrations()) {
+            if (integration.canToggle()) {
+                JCheckBoxMenuItem item = new JCheckBoxMenuItem(integration.name(), integration.isEnabled());
+                item.setToolTipText(integration.description());
+                item.addActionListener(e -> integration.setEnabled(item.isSelected()));
+                menu.add(item);
+            }
+        }
+
+        menu.addSeparator();
+        for (ReminderIntegration integration : manager.getIntegrations()) {
+            if (!integration.canToggle()) {
+                String estado = integration.isEnabled() ? "activa" : "sin configurar";
+                JMenuItem info = new JMenuItem(integration.name() + "  —  " + estado);
+                info.setEnabled(false);
+                menu.add(info);
+            }
+        }
+
+        menu.addSeparator();
+        JMenuItem about = new JMenuItem("¿Cómo funcionan?");
+        about.addActionListener(e -> showIntegrationsHelp(manager));
+        menu.add(about);
+
+        menuBar.add(menu);
+        setJMenuBar(menuBar);
+        // Recalcula el tamano incluyendo la barra de menu (evita recortes) y
+        // conserva el extra de ancho; recentra la ventana.
+        pack();
+        setSize(getWidth() + 10, getHeight());
+        setLocationRelativeTo(null);
+    }
+
+    private void showIntegrationsHelp(IntegrationManager manager) {
+        StringBuilder sb = new StringBuilder("<html><body style='width:320px'>");
+        sb.append("<b>Extensiones disponibles</b><br><br>");
+        for (ReminderIntegration integration : manager.getIntegrations()) {
+            sb.append("• <b>").append(integration.name()).append("</b><br>")
+              .append(integration.description().isEmpty()
+                      ? "Integración avanzada (requiere configuración)."
+                      : integration.description())
+              .append("<br><br>");
+        }
+        sb.append("Actívalas desde el menú <i>Integraciones</i>. Las de tipo "
+                + "<i>link</i> y <i>.ics</i> usan tu propia cuenta y no requieren tokens.");
+        sb.append("</body></html>");
+        JOptionPane.showMessageDialog(this, new JLabel(sb.toString()),
+                "Integraciones", JOptionPane.INFORMATION_MESSAGE);
     }
 
     public void settingDate() {
