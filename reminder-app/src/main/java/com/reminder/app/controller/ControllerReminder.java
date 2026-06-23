@@ -54,6 +54,7 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         viewReminder.getEditButton().addActionListener(e -> loadSelectedForEdit());
         viewReminder.setRowSelectionHandler(this::loadForEdit);
         viewReminder.installIntegrationsMenu(integrations, soundPlayer);
+        trayNotifier.enableMinimizeToTray(viewReminder);
         refreshTable();
 
         // Arranca el planificador de avisos (revisa cada 30s, primer chequeo inmediato).
