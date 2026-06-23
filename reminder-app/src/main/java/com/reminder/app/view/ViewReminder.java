@@ -516,23 +516,38 @@ public final class ViewReminder extends javax.swing.JFrame {
     }
 
     /**
-     * Instala el menu contextual (clic derecho) para posponer un recordatorio.
-     * El manejador recibe (fila, minutos).
+     * Instala el menu contextual (clic derecho) de cada recordatorio con las
+     * acciones Editar, Posponer y Eliminar. Sustituye al boton de eliminar en la
+     * celda (que no encaja con el diseño de tarjetas).
      */
-    public void installSnoozeMenu(java.util.function.BiConsumer<Integer, Integer> handler) {
+    public void installRowMenu(java.util.function.IntConsumer onEdit,
+                               java.util.function.BiConsumer<Integer, Integer> onSnooze,
+                               java.util.function.IntConsumer onDelete) {
         javax.swing.JPopupMenu popup = new javax.swing.JPopupMenu();
-        int[] minutos = {10, 30, 60};
-        for (int m : minutos) {
+
+        javax.swing.JMenuItem edit = new javax.swing.JMenuItem("Editar");
+        edit.addActionListener(e -> withRow(onEdit));
+        popup.add(edit);
+        popup.addSeparator();
+
+        for (int m : new int[]{10, 30, 60}) {
             javax.swing.JMenuItem item = new javax.swing.JMenuItem("Posponer " + m + " min");
             final int mins = m;
             item.addActionListener(e -> {
                 int row = jTable1.getSelectedRow();
                 if (row >= 0) {
-                    handler.accept(row, mins);
+                    onSnooze.accept(row, mins);
                 }
             });
             popup.add(item);
         }
+        popup.addSeparator();
+
+        javax.swing.JMenuItem delete = new javax.swing.JMenuItem("Eliminar");
+        delete.setForeground(Theme.DANGER);
+        delete.addActionListener(e -> withRow(onDelete));
+        popup.add(delete);
+
         // Seleccionar la fila bajo el cursor al hacer clic derecho.
         jTable1.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
@@ -555,6 +570,13 @@ public final class ViewReminder extends javax.swing.JFrame {
             }
         });
         jTable1.setComponentPopupMenu(popup);
+    }
+
+    private void withRow(java.util.function.IntConsumer action) {
+        int row = jTable1.getSelectedRow();
+        if (row >= 0) {
+            action.accept(row);
+        }
     }
 
     /** Limpia el formulario tras guardar. */
@@ -580,10 +602,10 @@ public final class ViewReminder extends javax.swing.JFrame {
     /** Instala un modelo de tabla tipo "tarjetas": 1 columna rica + accion. */
     private void setupTableModel() {
         DefaultTableModel model = new DefaultTableModel(
-                new Object[]{"Recordatorios", " "}, 0) {
+                new Object[]{"Recordatorios"}, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return column == 1; // solo la columna de accion (boton eliminar)
+                return false; // las acciones van en el menu contextual
             }
         };
         jTable1.setModel(model);
@@ -595,7 +617,7 @@ public final class ViewReminder extends javax.swing.JFrame {
         DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
         model.setRowCount(0);
         for (com.reminder.app.model.Reminder r : reminders) {
-            model.addRow(new Object[]{buildCardHtml(r), ""});
+            model.addRow(new Object[]{buildCardHtml(r)});
         }
         // Reaplicar render/editor de columnas tras cambiar el modelo.
         cellRenderTable();
@@ -693,13 +715,6 @@ public final class ViewReminder extends javax.swing.JFrame {
             }
         };
         jTable1.getColumnModel().getColumn(0).setCellRenderer(cardRenderer);
-
-        // Columna de accion (boton eliminar) estrecha.
-        jTable1.getColumnModel().getColumn(1).setCellEditor(new CellEditorTable(new JComboBox<>(), event_button));
-        jTable1.getColumnModel().getColumn(1).setCellRenderer(new CellEditorTable(new JComboBox<>(), event_button));
-        jTable1.getColumnModel().getColumn(1).setMinWidth(150);
-        jTable1.getColumnModel().getColumn(1).setMaxWidth(170);
-        jTable1.getColumnModel().getColumn(1).setPreferredWidth(160);
 
         jTable1.setSelectionBackground(Theme.SELECTION);
         jTable1.setSelectionForeground(Theme.TEXT);

@@ -59,7 +59,7 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         viewReminder.getDeleteAllButton().addActionListener(e -> deleteAll());
         viewReminder.getEditButton().addActionListener(e -> loadSelectedForEdit());
         viewReminder.setRowSelectionHandler(this::loadForEdit);
-        viewReminder.installSnoozeMenu(this::snooze);
+        viewReminder.installRowMenu(this::loadForEdit, this::snooze, this::deleteRow);
         viewReminder.attachNotes(noteRepository);
         viewReminder.installIntegrationsMenu(integrations, soundPlayer, this::applyFilter);
         trayNotifier.enableMinimizeToTray(viewReminder);
@@ -272,6 +272,20 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         repository.deleteById(target.getId());
         integrations.dispatchDeleted(target);
         refreshTable();
+    }
+
+    /** Eliminar desde el menu contextual, con confirmacion. */
+    private void deleteRow(int index) {
+        if (currentReminders == null || index < 0 || index >= currentReminders.size()) {
+            return;
+        }
+        Reminder target = currentReminders.get(index);
+        int ok = JOptionPane.showConfirmDialog(viewReminder,
+                "¿Eliminar \"" + target.getTitle() + "\"?", "Confirmar",
+                JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (ok == JOptionPane.YES_OPTION) {
+            delete_index(index);
+        }
     }
 
     private void deleteAll() {
