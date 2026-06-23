@@ -6,10 +6,13 @@ import com.reminder.app.repository.ReminderRepository;
 import com.reminder.app.service.ReminderScheduler;
 import com.reminder.app.service.SoundPlayer;
 import com.reminder.app.service.TrayNotifier;
+import com.reminder.app.service.integration.EmailDraftIntegration;
 import com.reminder.app.service.integration.GoogleCalendarIntegration;
 import com.reminder.app.service.integration.GoogleCalendarLinkIntegration;
 import com.reminder.app.service.integration.IcsExportIntegration;
 import com.reminder.app.service.integration.IntegrationManager;
+import com.reminder.app.service.integration.OutlookCalendarLinkIntegration;
+import com.reminder.app.service.integration.WebhookIntegration;
 import com.reminder.app.view.ViewReminder;
 import com.reminder.app.view.components.Action_button;
 import java.awt.event.ActionEvent;
@@ -67,7 +70,10 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
     private void registerIntegrations() {
         // Sin token: el usuario las activa desde el menu "Integraciones".
         integrations.register(new GoogleCalendarLinkIntegration());
+        integrations.register(new OutlookCalendarLinkIntegration());
+        integrations.register(new EmailDraftIntegration());
         integrations.register(new IcsExportIntegration());
+        integrations.register(new WebhookIntegration());
         // Avanzada (OAuth): se habilita sola si existe client_secret.json.
         integrations.register(new GoogleCalendarIntegration());
         // Para anadir mas conexiones: integrations.register(new TuIntegracion());
