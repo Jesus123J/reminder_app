@@ -21,7 +21,6 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
 import raven.datetime.component.date.DatePicker;
 import raven.datetime.component.time.TimePicker;
-import raven.toast.Notifications;
 
 /**
  *
@@ -40,7 +39,6 @@ public final class ViewReminder extends javax.swing.JFrame {
 
     public ViewReminder(Action_button event_button) {
         this.event_button = event_button;
-        Notifications.getInstance().setJFrame(this);
         initComponents();
         applyTheme();
         setupTableModel();
@@ -126,17 +124,20 @@ public final class ViewReminder extends javax.swing.JFrame {
         return timePicker.isTimeSelected() ? timePicker.getSelectedTime() : null;
     }
 
-    /** Traduce la etiqueta del combo de antelacion a minutos. */
+    /**
+     * Traduce la etiqueta del combo a minutos de antelacion (cuanto ANTES de la
+     * fecha/hora se avisa). "A la hora exacta" = 0.
+     */
     public int getAdvanceMinutes() {
         String label = String.valueOf(jComboBox1.getSelectedItem());
         switch (label) {
-            case "5 minutos":   return 5;
-            case "10 minutos":  return 10;
-            case "50 minutos":  return 50;
-            case "1 hora":      return 60;
-            case "Un dia Antes":
-            case "Un día Antes": return 1440;
-            default:            return 0;
+            case "A la hora exacta": return 0;
+            case "5 minutos antes":  return 5;
+            case "10 minutos antes": return 10;
+            case "30 minutos antes": return 30;
+            case "1 hora antes":     return 60;
+            case "1 día antes":      return 1440;
+            default:                 return 0;
         }
     }
 
@@ -311,7 +312,7 @@ public final class ViewReminder extends javax.swing.JFrame {
 
         jComboBox1.setBackground(new java.awt.Color(204, 204, 204));
         jComboBox1.setForeground(new java.awt.Color(0, 0, 0));
-        jComboBox1.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "5 minutos", "10 minutos", "50 minutos", "1 hora", "Un dia Antes" }));
+        jComboBox1.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "A la hora exacta", "5 minutos antes", "10 minutos antes", "30 minutos antes", "1 hora antes", "1 día antes" }));
         jComboBox1.setBorder(null);
 
         javax.swing.GroupLayout panelRound1Layout = new javax.swing.GroupLayout(panelRound1);

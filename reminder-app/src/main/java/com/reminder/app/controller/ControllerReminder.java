@@ -15,7 +15,6 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import javax.swing.JOptionPane;
-import raven.toast.Notifications;
 
 /**
  * Controlador principal: coordina la vista con el repositorio de recordatorios.
@@ -66,14 +65,16 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         String body = (r.getDescription() == null || r.getDescription().isBlank())
                 ? "Vence a las " + r.getTime()
                 : r.getDescription();
-        Notifications.getInstance().show(Notifications.Type.INFO,
-                Notifications.Location.BOTTOM_RIGHT, "🔔 " + r.getTitle());
-        trayNotifier.show("🔔 " + r.getTitle(), body);
+        // Notificacion NATIVA de Windows (bandeja) + sonido. Es la que aparece
+        // en el sistema aunque la ventana no tenga el foco.
+        trayNotifier.show("Recordatorio: " + r.getTitle(), body);
+        java.awt.Toolkit.getDefaultToolkit().beep();
         refreshTable();
     }
 
     /** Recarga la tabla desde el repositorio. */
     private void refreshTable() {
+        
         currentReminders = repository.findAll();
         viewReminder.loadReminders(currentReminders);
     }
@@ -105,13 +106,14 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         integrations.dispatchCreated(saved);
         viewReminder.clearForm();
         refreshTable();
-        Notifications.getInstance().show(Notifications.Type.SUCCESS,
-                Notifications.Location.BOTTOM_RIGHT, "Recordatorio guardado");
+        // Revision inmediata: si ya vencio (segun la antelacion), avisa al instante.
+        scheduler.checkNow();
+        trayNotifier.show("Recordatorio guardado", title);
     }
 
     private void warn(String message) {
-        Notifications.getInstance().show(Notifications.Type.WARNING,
-                Notifications.Location.BOTTOM_RIGHT, message);
+        JOptionPane.showMessageDialog(viewReminder, message, "Atención",
+                JOptionPane.WARNING_MESSAGE);
     }
 
     @Override
@@ -123,8 +125,6 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         repository.deleteById(target.getId());
         integrations.dispatchDeleted(target);
         refreshTable();
-        Notifications.getInstance().show(Notifications.Type.SUCCESS,
-                Notifications.Location.BOTTOM_RIGHT, "Recordatorio eliminado");
     }
 
     private void deleteAll() {
@@ -138,8 +138,6 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         if (option == JOptionPane.YES_OPTION) {
             repository.deleteAll();
             refreshTable();
-            Notifications.getInstance().show(Notifications.Type.SUCCESS,
-                    Notifications.Location.BOTTOM_RIGHT, "Se eliminaron todos los recordatorios");
         }
     }
 }

@@ -19,7 +19,7 @@ import javax.swing.Timer;
 public class ReminderScheduler {
 
     /** Intervalo de comprobacion (ms). */
-    private static final int CHECK_INTERVAL_MS = 30_000;
+    private static final int CHECK_INTERVAL_MS = 15_000;
 
     private final ReminderRepository repository;
     private final Consumer<Reminder> onDue;
@@ -38,6 +38,11 @@ public class ReminderScheduler {
 
     public void stop() {
         timer.stop();
+    }
+
+    /** Fuerza una revision inmediata (util tras crear un recordatorio). */
+    public void checkNow() {
+        check();
     }
 
     private void check() {
