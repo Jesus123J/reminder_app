@@ -208,6 +208,56 @@ public final class ViewReminder extends javax.swing.JFrame {
         }
     }
 
+    /** Selecciona en el combo la etiqueta correspondiente a los minutos dados. */
+    public void setAdvanceMinutes(int minutes) {
+        String label;
+        switch (minutes) {
+            case 5:    label = "5 minutos antes";  break;
+            case 10:   label = "10 minutos antes"; break;
+            case 30:   label = "30 minutos antes"; break;
+            case 60:   label = "1 hora antes";     break;
+            case 1440: label = "1 día antes";      break;
+            default:   label = "A la hora exacta"; break;
+        }
+        jComboBox1.setSelectedItem(label);
+    }
+
+    /** Carga un recordatorio en el formulario para editarlo. */
+    public void loadIntoForm(String title, String description, LocalDate date,
+                             LocalTime time, int advanceMinutes) {
+        textField1.setText(title == null ? "" : title);
+        jTextPane1.setText(description == null ? "" : description);
+        if (date != null) {
+            datePicker.setSelectedDate(date);
+        }
+        if (time != null) {
+            timePicker.setSelectedTime(time);
+        }
+        setAdvanceMinutes(advanceMinutes);
+    }
+
+    /** Registra un manejador que recibe el indice de la fila seleccionada. */
+    public void setRowSelectionHandler(java.util.function.IntConsumer handler) {
+        jTable1.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                int row = jTable1.getSelectedRow();
+                if (row >= 0) {
+                    handler.accept(row);
+                }
+            }
+        });
+    }
+
+    /** Boton EDITAR para que el controlador registre su accion. */
+    public com.reminder.app.util.Button getEditButton() {
+        return button2;
+    }
+
+    /** Fila seleccionada actualmente (o -1 si ninguna). */
+    public int getSelectedRow() {
+        return jTable1.getSelectedRow();
+    }
+
     /** Limpia el formulario tras guardar. */
     public void clearForm() {
         textField1.setText("");
@@ -215,6 +265,7 @@ public final class ViewReminder extends javax.swing.JFrame {
         datePicker.now();
         timePicker.setSelectedTime(LocalTime.now().withSecond(0).withNano(0));
         jComboBox1.setSelectedIndex(0);
+        jTable1.clearSelection();
     }
 
     /** Boton "ELIMINAR TODO" para que el controlador registre su accion. */

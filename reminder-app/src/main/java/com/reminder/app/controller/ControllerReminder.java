@@ -34,6 +34,9 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
     /** Lista actual mostrada en la tabla; su orden coincide con las filas. */
     private List<Reminder> currentReminders;
 
+    /** Id del recordatorio en edicion; null si se esta creando uno nuevo. */
+    private Long editingId;
+
     public ControllerReminder() {
         this.repository = new ReminderRepository();
         this.trayNotifier = new TrayNotifier();
@@ -43,6 +46,8 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         super.init(viewReminder);
         viewReminder.buttonSaveData.addActionListener(this);
         viewReminder.getDeleteAllButton().addActionListener(e -> deleteAll());
+        viewReminder.getEditButton().addActionListener(e -> loadSelectedForEdit());
+        viewReminder.setRowSelectionHandler(this::loadForEdit);
         viewReminder.installIntegrationsMenu(integrations);
         refreshTable();
 
@@ -97,6 +102,26 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         }
     }
 
+    /** Carga en el formulario el recordatorio de la fila indicada para editarlo. */
+    private void loadForEdit(int row) {
+        if (currentReminders == null || row < 0 || row >= currentReminders.size()) {
+            return;
+        }
+        Reminder r = currentReminders.get(row);
+        editingId = r.getId();
+        viewReminder.loadIntoForm(r.getTitle(), r.getDescription(),
+                r.getDate(), r.getTime(), r.getAdvanceMinutes());
+    }
+
+    private void loadSelectedForEdit() {
+        int row = viewReminder.getSelectedRow();
+        if (row < 0) {
+            warn("Selecciona una fila para editar");
+            return;
+        }
+        loadForEdit(row);
+    }
+
     private void saveReminder() {
         String title = viewReminder.getTitleInput();
         String description = viewReminder.getDescriptionInput();
@@ -113,6 +138,26 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
             return;
         }
 
+        if (editingId != null) {
+            // Actualizar el recordatorio existente.
+            Reminder existing = findById(editingId);
+            if (existing != null) {
+                existing.setTitle(title);
+                existing.setDescription(description);
+                existing.setDate(date);
+                existing.setTime(time);
+                existing.setAdvanceMinutes(advance);
+                existing.setNotified(false); // permite que vuelva a avisar con los nuevos datos
+                repository.update(existing);
+            }
+            editingId = null;
+            viewReminder.clearForm();
+            refreshTable();
+            scheduler.checkNow();
+            trayNotifier.show("Recordatorio actualizado", title);
+            return;
+        }
+
         Reminder saved = repository.add(title, description, date, time, advance);
         integrations.dispatchCreated(saved);
         viewReminder.clearForm();
@@ -120,6 +165,15 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         // Revision inmediata: si ya vencio (segun la antelacion), avisa al instante.
         scheduler.checkNow();
         trayNotifier.show("Recordatorio guardado", title);
+    }
+
+    private Reminder findById(long id) {
+        for (Reminder r : repository.findAll()) {
+            if (r.getId() == id) {
+                return r;
+            }
+        }
+        return null;
     }
 
     private void warn(String message) {
