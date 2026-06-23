@@ -34,7 +34,9 @@ public class ModelReminderData {
     public void init(ViewReminder viewReminder) {
         Image icon = new ImageIcon(getClass().getResource("/icon-frame/noti.png")).getImage();
         viewReminder.setIconImage(icon);
-        viewReminder.setResizable(false);
+        // Ventana redimensionable: el usuario puede ajustar el ancho/alto.
+        viewReminder.setResizable(true);
+        viewReminder.setMinimumSize(viewReminder.getSize());
         viewReminder.setLocationRelativeTo(null);
         viewReminder.setVisible(true);
     }
