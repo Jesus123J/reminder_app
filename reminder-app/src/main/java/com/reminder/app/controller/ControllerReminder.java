@@ -10,6 +10,7 @@ import java.awt.event.ActionListener;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import javax.swing.JOptionPane;
 import raven.toast.Notifications;
 
 /**
@@ -30,6 +31,7 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         this.viewReminder = new ViewReminder(this);
         super.init(viewReminder);
         viewReminder.buttonSaveData.addActionListener(this);
+        viewReminder.getDeleteAllButton().addActionListener(e -> deleteAll());
         refreshTable();
     }
 
@@ -76,7 +78,29 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
 
     @Override
     public void delete_index(int index) {
-        // Implementado en la rama feat/delete.
-        System.out.println("Index -> " + index);
+        if (currentReminders == null || index < 0 || index >= currentReminders.size()) {
+            return;
+        }
+        Reminder target = currentReminders.get(index);
+        repository.deleteById(target.getId());
+        refreshTable();
+        Notifications.getInstance().show(Notifications.Type.SUCCESS,
+                Notifications.Location.BOTTOM_RIGHT, "Recordatorio eliminado");
+    }
+
+    private void deleteAll() {
+        if (repository.count() == 0) {
+            warn("No hay recordatorios para eliminar");
+            return;
+        }
+        int option = JOptionPane.showConfirmDialog(viewReminder,
+                "¿Eliminar todos los recordatorios?", "Confirmar",
+                JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (option == JOptionPane.YES_OPTION) {
+            repository.deleteAll();
+            refreshTable();
+            Notifications.getInstance().show(Notifications.Type.SUCCESS,
+                    Notifications.Location.BOTTOM_RIGHT, "Se eliminaron todos los recordatorios");
+        }
     }
 }

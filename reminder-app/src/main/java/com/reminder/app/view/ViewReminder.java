@@ -140,6 +140,11 @@ public final class ViewReminder extends javax.swing.JFrame {
         jComboBox1.setSelectedIndex(0);
     }
 
+    /** Boton "ELIMINAR TODO" para que el controlador registre su accion. */
+    public com.reminder.app.util.Button getDeleteAllButton() {
+        return button1;
+    }
+
     // ----- API para el controlador: pintado de la tabla -----
 
     /** Instala un modelo de tabla dinamico (sin filas hardcodeadas). */
