@@ -114,6 +114,8 @@ public class NotesPanel extends JPanel {
         JScrollPane contentScroll = new JScrollPane(contentArea);
         contentScroll.setBorder(BorderFactory.createLineBorder(Theme.LINE));
         right.add(contentScroll, BorderLayout.CENTER);
+        enableFileDrop(contentArea);
+        contentArea.setToolTipText("Arrastra aquí imágenes o audio para adjuntarlos");
 
         attachmentStrip.setOpaque(false);
 
@@ -262,7 +264,33 @@ public class NotesPanel extends JPanel {
         refreshList();
     }
 
-    /** Copia un archivo (imagen/audio) a la carpeta de la nota y lo adjunta. */
+    /** Permite soltar archivos (imagenes/audio) sobre el componente para adjuntarlos. */
+    @SuppressWarnings("unchecked")
+    private void enableFileDrop(Component comp) {
+        new java.awt.dnd.DropTarget(comp, new java.awt.dnd.DropTargetAdapter() {
+            @Override
+            public void drop(java.awt.dnd.DropTargetDropEvent ev) {
+                try {
+                    ev.acceptDrop(java.awt.dnd.DnDConstants.ACTION_COPY);
+                    java.util.List<java.io.File> files = (java.util.List<java.io.File>)
+                            ev.getTransferable().getTransferData(java.awt.datatransfer.DataFlavor.javaFileListFlavor);
+                    if (current == null) {
+                        JOptionPane.showMessageDialog(NotesPanel.this,
+                                "Selecciona o crea una nota antes de adjuntar", "Notas",
+                                JOptionPane.INFORMATION_MESSAGE);
+                        return;
+                    }
+                    for (java.io.File f : files) {
+                        attachFile(f);
+                    }
+                } catch (Exception ex) {
+                    // Drop invalido: se ignora.
+                }
+            }
+        });
+    }
+
+    /** Elige un archivo con el dialogo y lo adjunta. */
     private void addAttachment(boolean image) {
         if (current == null) {
             return;
@@ -271,11 +299,17 @@ public class NotesPanel extends JPanel {
         fc.setFileFilter(image
                 ? new javax.swing.filechooser.FileNameExtensionFilter("Imágenes", "png", "jpg", "jpeg", "gif")
                 : new javax.swing.filechooser.FileNameExtensionFilter("Audio", "wav", "mp3", "m4a", "ogg"));
-        if (fc.showOpenDialog(this) != javax.swing.JFileChooser.APPROVE_OPTION) {
+        if (fc.showOpenDialog(this) == javax.swing.JFileChooser.APPROVE_OPTION) {
+            attachFile(fc.getSelectedFile());
+        }
+    }
+
+    /** Copia un archivo a la carpeta de la nota y lo adjunta (usado por boton y drag&drop). */
+    private void attachFile(java.io.File src) {
+        if (current == null || src == null || !src.isFile()) {
             return;
         }
         try {
-            java.io.File src = fc.getSelectedFile();
             java.nio.file.Path dir = java.nio.file.Paths.get(ASSETS_DIR, String.valueOf(current.getId()));
             java.nio.file.Files.createDirectories(dir);
             java.nio.file.Path dest = dir.resolve(src.getName());
@@ -290,38 +324,154 @@ public class NotesPanel extends JPanel {
         }
     }
 
-    /** Reconstruye la franja de adjuntos (miniaturas de imagen / botones de audio). */
+    private boolean isImage(String name) {
+        String n = name.toLowerCase();
+        return n.endsWith(".png") || n.endsWith(".jpg") || n.endsWith(".jpeg") || n.endsWith(".gif");
+    }
+
+    /** Reconstruye la franja de adjuntos con tarjetas modernas (hover con opciones). */
     private void refreshAttachments() {
         attachmentStrip.removeAll();
         if (current != null) {
             for (String path : current.getAttachments()) {
                 java.io.File f = new java.io.File(path);
-                String lower = f.getName().toLowerCase();
-                boolean isImg = lower.endsWith(".png") || lower.endsWith(".jpg")
-                        || lower.endsWith(".jpeg") || lower.endsWith(".gif");
-                if (isImg && f.isFile()) {
-                    javax.swing.ImageIcon icon = new javax.swing.ImageIcon(
-                            new javax.swing.ImageIcon(path).getImage()
-                                    .getScaledInstance(72, 72, java.awt.Image.SCALE_SMOOTH));
-                    JLabel thumb = new JLabel(icon);
-                    thumb.setToolTipText(f.getName() + " (clic para abrir)");
-                    thumb.setBorder(BorderFactory.createLineBorder(Theme.LINE));
-                    thumb.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
-                    thumb.addMouseListener(new java.awt.event.MouseAdapter() {
-                        @Override
-                        public void mouseClicked(java.awt.event.MouseEvent e) {
-                            openFile(f);
-                        }
-                    });
-                    attachmentStrip.add(thumb);
-                } else {
-                    JButton play = plain(new JButton("♪ " + f.getName()), e -> openFile(f));
-                    attachmentStrip.add(play);
-                }
+                attachmentStrip.add(isImage(f.getName()) ? buildImageTile(f) : buildAudioTile(f));
             }
         }
         attachmentStrip.revalidate();
         attachmentStrip.repaint();
+    }
+
+    /** Miniatura de imagen redondeada con barra de opciones (Abrir/Eliminar) al pasar el mouse. */
+    private JPanel buildImageTile(java.io.File f) {
+        JPanel tile = new JPanel(new BorderLayout());
+        tile.setBackground(Theme.SURFACE);
+        tile.setBorder(BorderFactory.createLineBorder(Theme.LINE));
+        tile.setPreferredSize(new Dimension(96, 110));
+
+        JLabel thumb = new JLabel();
+        thumb.setHorizontalAlignment(JLabel.CENTER);
+        if (f.isFile()) {
+            thumb.setIcon(new javax.swing.ImageIcon(new javax.swing.ImageIcon(f.getPath()).getImage()
+                    .getScaledInstance(88, 80, java.awt.Image.SCALE_SMOOTH)));
+        } else {
+            thumb.setText("(no encontrada)");
+            thumb.setForeground(Theme.TEXT_MUTED);
+        }
+        thumb.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+        thumb.setToolTipText(f.getName());
+        tile.add(thumb, BorderLayout.CENTER);
+
+        JPanel hoverBar = optionsBar(f);
+        hoverBar.setVisible(false);
+        tile.add(hoverBar, BorderLayout.SOUTH);
+        addHover(tile, hoverBar);
+
+        thumb.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                openFile(f);
+            }
+        });
+        return tile;
+    }
+
+    /** Chip de audio moderno con play y opciones al pasar el mouse. */
+    private JPanel buildAudioTile(java.io.File f) {
+        com.reminder.app.util.PanelRound chip = new com.reminder.app.util.PanelRound();
+        chip.setRoundTopLeft(16);
+        chip.setRoundTopRight(16);
+        chip.setRoundBottomLeft(16);
+        chip.setRoundBottomRight(16);
+        chip.setBackground(Theme.SURFACE);
+        chip.setLayout(new BorderLayout(8, 0));
+        chip.setBorder(new EmptyBorder(8, 12, 8, 12));
+        chip.setPreferredSize(new Dimension(180, 56));
+
+        JLabel play = new JLabel("▶"); // triangulo play
+        play.setFont(Theme.fontBold(16));
+        play.setForeground(Theme.PRIMARY_DARK);
+        play.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+        play.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                openFile(f);
+            }
+        });
+        chip.add(play, BorderLayout.WEST);
+
+        String name = f.getName();
+        JLabel label = new JLabel(name.length() > 18 ? name.substring(0, 17) + "…" : name);
+        label.setFont(Theme.fontRegular(13));
+        label.setForeground(Theme.TEXT);
+        label.setToolTipText(name);
+        chip.add(label, BorderLayout.CENTER);
+
+        JButton del = new JButton("✕");
+        del.setFont(Theme.fontBold(12));
+        del.setForeground(Theme.DANGER);
+        del.setFocusPainted(false);
+        del.setBorder(new EmptyBorder(0, 6, 0, 0));
+        del.setContentAreaFilled(false);
+        del.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+        del.addActionListener(e -> removeAttachment(f));
+        chip.add(del, BorderLayout.EAST);
+        return chip;
+    }
+
+    /** Barra de opciones (Abrir / Eliminar) para las miniaturas de imagen. */
+    private JPanel optionsBar(java.io.File f) {
+        JPanel bar = new JPanel(new FlowLayout(FlowLayout.CENTER, 4, 2));
+        bar.setBackground(Theme.SELECTION);
+        JButton open = miniButton("Abrir", e -> openFile(f));
+        JButton del = miniButton("Eliminar", e -> removeAttachment(f));
+        del.setForeground(Theme.DANGER);
+        bar.add(open);
+        bar.add(del);
+        return bar;
+    }
+
+    private JButton miniButton(String text, java.awt.event.ActionListener a) {
+        JButton b = new JButton(text);
+        b.setFont(Theme.fontBold(11));
+        b.setFocusPainted(false);
+        b.setMargin(new java.awt.Insets(2, 6, 2, 6));
+        b.setContentAreaFilled(false);
+        b.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+        b.addActionListener(a);
+        return b;
+    }
+
+    /** Muestra la barra de opciones al entrar el mouse y la oculta al salir realmente. */
+    private void addHover(JPanel tile, JPanel bar) {
+        java.awt.event.MouseAdapter ma = new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent e) {
+                bar.setVisible(true);
+                tile.setBorder(BorderFactory.createLineBorder(Theme.PRIMARY));
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent e) {
+                if (tile.getMousePosition(true) == null) {
+                    bar.setVisible(false);
+                    tile.setBorder(BorderFactory.createLineBorder(Theme.LINE));
+                }
+            }
+        };
+        tile.addMouseListener(ma);
+        for (Component c : tile.getComponents()) {
+            c.addMouseListener(ma);
+        }
+    }
+
+    private void removeAttachment(java.io.File f) {
+        if (current == null) {
+            return;
+        }
+        current.getAttachments().removeIf(p -> p.equals(f.getPath()) || p.equals(f.toString()));
+        repository.update(current);
+        refreshAttachments();
     }
 
     private void openFile(java.io.File f) {
