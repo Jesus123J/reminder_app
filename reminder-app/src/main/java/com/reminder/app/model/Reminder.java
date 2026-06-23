@@ -16,6 +16,9 @@ import java.util.Objects;
  */
 public class Reminder {
 
+    /** Nivel de prioridad del recordatorio. */
+    public enum Priority { ALTA, MEDIA, BAJA }
+
     private final long id;
     private String title;
     private String description;
@@ -25,6 +28,10 @@ public class Reminder {
     private int advanceMinutes;
     /** Marca si ya se disparo la notificacion (evita avisos repetidos). */
     private boolean notified;
+    /** Prioridad (por defecto MEDIA). */
+    private Priority priority = Priority.MEDIA;
+    /** Categoria/etiqueta libre (por defecto vacia). */
+    private String category = "";
 
     public Reminder(long id, String title, String description,
                     LocalDate date, LocalTime time, int advanceMinutes) {
@@ -99,6 +106,22 @@ public class Reminder {
 
     public void setNotified(boolean notified) {
         this.notified = notified;
+    }
+
+    public Priority getPriority() {
+        return priority == null ? Priority.MEDIA : priority;
+    }
+
+    public void setPriority(Priority priority) {
+        this.priority = priority == null ? Priority.MEDIA : priority;
+    }
+
+    public String getCategory() {
+        return category == null ? "" : category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category == null ? "" : category;
     }
 
     @Override

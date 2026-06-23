@@ -38,6 +38,7 @@ public class ReminderRepository {
     private static final Logger LOGGER = Logger.getLogger(ReminderRepository.class.getName());
 
     private static final String FIELD_SEP = "|";
+    /** Campos base obligatorios; los posteriores (prioridad, categoria) son opcionales. */
     private static final int FIELD_COUNT = 7;
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ISO_LOCAL_DATE; // yyyy-MM-dd
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
@@ -65,7 +66,17 @@ public class ReminderRepository {
     /** Crea un nuevo recordatorio, lo persiste y lo devuelve con su id asignado. */
     public synchronized Reminder add(String title, String description,
                                      LocalDate date, LocalTime time, int advanceMinutes) {
+        return add(title, description, date, time, advanceMinutes,
+                Reminder.Priority.MEDIA, "");
+    }
+
+    /** Variante con prioridad y categoria. */
+    public synchronized Reminder add(String title, String description,
+                                     LocalDate date, LocalTime time, int advanceMinutes,
+                                     Reminder.Priority priority, String category) {
         Reminder reminder = new Reminder(nextId++, title, description, date, time, advanceMinutes);
+        reminder.setPriority(priority);
+        reminder.setCategory(category);
         cache.add(reminder);
         flush();
         return reminder;
@@ -148,7 +159,9 @@ public class ReminderRepository {
                 r.getDate() == null ? "" : r.getDate().format(DATE_FMT),
                 r.getTime() == null ? "" : r.getTime().format(TIME_FMT),
                 Integer.toString(r.getAdvanceMinutes()),
-                Boolean.toString(r.isNotified()));
+                Boolean.toString(r.isNotified()),
+                r.getPriority().name(),
+                encode(r.getCategory()));
     }
 
     private Reminder parse(String line) {
@@ -167,6 +180,17 @@ public class ReminderRepository {
             boolean notified = Boolean.parseBoolean(parts[6]);
             Reminder r = new Reminder(id, title, description, date, time, advance);
             r.setNotified(notified);
+            // Campos opcionales (compatibilidad con datos antiguos).
+            if (parts.length > 7 && !parts[7].isEmpty()) {
+                try {
+                    r.setPriority(Reminder.Priority.valueOf(parts[7]));
+                } catch (IllegalArgumentException ignore) {
+                    // valor desconocido: se queda en MEDIA
+                }
+            }
+            if (parts.length > 8) {
+                r.setCategory(decode(parts[8]));
+            }
             return r;
         } catch (RuntimeException ex) {
             LOGGER.log(Level.WARNING, "Linea ignorada (error de parseo): " + line, ex);

@@ -47,15 +47,40 @@ public final class ViewReminder extends javax.swing.JFrame {
     private DatePicker datePicker;
     private TimePicker timePicker;
 
+    /** Controles extra: prioridad y categoria. */
+    private JComboBox<String> priorityCombo;
+    private javax.swing.JTextField categoryField;
+    /** Recordatorios actualmente pintados (para colorear por prioridad). */
+    private java.util.List<com.reminder.app.model.Reminder> rowData = java.util.Collections.emptyList();
+
     public ViewReminder(Action_button event_button) {
         this.event_button = event_button;
         initComponents();
         applyTheme();
+        setupPriorityCategory();
         setupTableModel();
         cellRenderTable();
         settingDate();
         // Ensancha la ventana 10px sobre el tamano calculado por pack().
         setSize(getWidth() + 10, getHeight());
+    }
+
+    /** Anade los controles de prioridad y categoria a la barra de fecha/hora. */
+    private void setupPriorityCategory() {
+        priorityCombo = new JComboBox<>(new String[]{"Alta", "Media", "Baja"});
+        priorityCombo.setSelectedItem("Media");
+        priorityCombo.setFont(Theme.fontRegular(13));
+
+        categoryField = new javax.swing.JTextField(8);
+        categoryField.putClientProperty("JTextField.placeholderText", "Categoría");
+        categoryField.setFont(Theme.fontRegular(13));
+
+        // Reorganiza panelRound1 en una fila fluida conservando date/time/combo.
+        panelRound1.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 8));
+        panelRound1.add(new JLabel("⚑"));
+        panelRound1.add(priorityCombo);
+        panelRound1.add(categoryField);
+        panelRound1.revalidate();
     }
 
     /**
@@ -342,9 +367,24 @@ public final class ViewReminder extends javax.swing.JFrame {
         jComboBox1.setSelectedItem(label);
     }
 
+    /** Prioridad elegida en el formulario. */
+    public com.reminder.app.model.Reminder.Priority getPriority() {
+        String s = String.valueOf(priorityCombo.getSelectedItem());
+        switch (s) {
+            case "Alta": return com.reminder.app.model.Reminder.Priority.ALTA;
+            case "Baja": return com.reminder.app.model.Reminder.Priority.BAJA;
+            default:     return com.reminder.app.model.Reminder.Priority.MEDIA;
+        }
+    }
+
+    public String getCategory() {
+        return categoryField.getText().trim();
+    }
+
     /** Carga un recordatorio en el formulario para editarlo. */
     public void loadIntoForm(String title, String description, LocalDate date,
-                             LocalTime time, int advanceMinutes) {
+                             LocalTime time, int advanceMinutes,
+                             com.reminder.app.model.Reminder.Priority priority, String category) {
         textField1.setText(title == null ? "" : title);
         jTextPane1.setText(description == null ? "" : description);
         if (date != null) {
@@ -354,6 +394,9 @@ public final class ViewReminder extends javax.swing.JFrame {
             timePicker.setSelectedTime(time);
         }
         setAdvanceMinutes(advanceMinutes);
+        priorityCombo.setSelectedItem(priority == com.reminder.app.model.Reminder.Priority.ALTA ? "Alta"
+                : priority == com.reminder.app.model.Reminder.Priority.BAJA ? "Baja" : "Media");
+        categoryField.setText(category == null ? "" : category);
     }
 
     /** Registra un manejador que recibe el indice de la fila seleccionada. */
@@ -427,6 +470,8 @@ public final class ViewReminder extends javax.swing.JFrame {
         datePicker.now();
         timePicker.setSelectedTime(LocalTime.now().withSecond(0).withNano(0));
         jComboBox1.setSelectedIndex(0);
+        priorityCombo.setSelectedItem("Media");
+        categoryField.setText("");
         jTable1.clearSelection();
     }
 
@@ -451,12 +496,17 @@ public final class ViewReminder extends javax.swing.JFrame {
 
     /** Refresca la tabla con la lista de recordatorios indicada. */
     public void loadReminders(java.util.List<com.reminder.app.model.Reminder> reminders) {
+        this.rowData = reminders;
         DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
         model.setRowCount(0);
         for (com.reminder.app.model.Reminder r : reminders) {
             String when = (r.getDate() == null ? "" : r.getDate())
                     + (r.getTime() == null ? "" : " " + r.getTime());
             String desc = r.getDescription() == null ? "" : r.getDescription().replace("\n", " ");
+            String cat = r.getCategory() == null ? "" : r.getCategory();
+            if (!cat.isBlank()) {
+                desc = "🏷 " + cat + (desc.isBlank() ? "" : "  ·  " + desc);
+            }
             if (!when.isBlank()) {
                 desc = desc.isBlank() ? when : desc + "  ·  " + when;
             }
@@ -464,6 +514,18 @@ public final class ViewReminder extends javax.swing.JFrame {
         }
         // Reaplicar render/editor de columnas tras cambiar el modelo.
         cellRenderTable();
+    }
+
+    /** Color del texto segun la prioridad del recordatorio de esa fila. */
+    private Color priorityColor(int row) {
+        if (rowData != null && row >= 0 && row < rowData.size()) {
+            switch (rowData.get(row).getPriority()) {
+                case ALTA: return Theme.DANGER;
+                case BAJA: return Theme.TEXT_MUTED;
+                default:   return Theme.TEXT;
+            }
+        }
+        return Theme.TEXT;
     }
 
     public void cellRenderTable() {
@@ -494,7 +556,11 @@ public final class ViewReminder extends javax.swing.JFrame {
                 } else {
                     c.setBackground(row % 2 == 0 ? Theme.ROW_EVEN : Theme.ROW_ODD);
                 }
-                c.setForeground(Theme.TEXT);
+                // Columna TITULO coloreada por prioridad (rojo=alta, atenuado=baja).
+                c.setForeground(column == 0 ? priorityColor(row) : Theme.TEXT);
+                if (column == 0) {
+                    c.setFont(Theme.fontBold(14));
+                }
                 return c;
             }
         };

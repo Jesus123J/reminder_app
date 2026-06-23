@@ -120,7 +120,8 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         Reminder r = currentReminders.get(row);
         editingId = r.getId();
         viewReminder.loadIntoForm(r.getTitle(), r.getDescription(),
-                r.getDate(), r.getTime(), r.getAdvanceMinutes());
+                r.getDate(), r.getTime(), r.getAdvanceMinutes(),
+                r.getPriority(), r.getCategory());
     }
 
     private void loadSelectedForEdit() {
@@ -138,6 +139,8 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         LocalDate date = viewReminder.getSelectedDate();
         LocalTime time = viewReminder.getSelectedTime();
         int advance = viewReminder.getAdvanceMinutes();
+        Reminder.Priority priority = viewReminder.getPriority();
+        String category = viewReminder.getCategory();
 
         if (title.isEmpty()) {
             warn("El título es obligatorio");
@@ -157,6 +160,8 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
                 existing.setDate(date);
                 existing.setTime(time);
                 existing.setAdvanceMinutes(advance);
+                existing.setPriority(priority);
+                existing.setCategory(category);
                 existing.setNotified(false); // permite que vuelva a avisar con los nuevos datos
                 repository.update(existing);
             }
@@ -168,7 +173,7 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
             return;
         }
 
-        Reminder saved = repository.add(title, description, date, time, advance);
+        Reminder saved = repository.add(title, description, date, time, advance, priority, category);
         integrations.dispatchCreated(saved);
         viewReminder.clearForm();
         refreshTable();
