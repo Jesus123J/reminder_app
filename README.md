@@ -140,5 +140,28 @@ GitHub y luego se fusiona a `main`, que se mantiene siempre funcional.
 
 ---
 
+## 💾 Descargar el .exe (Windows)
+
+La app se empaqueta automáticamente con **GitHub Actions** (`.github/workflows/build-exe.yml`),
+que genera con `jpackage` un ejecutable de Windows **con Java incluido** (el usuario
+final no necesita instalar nada).
+
+**Para generarlo:**
+- **A mano:** pestaña **Actions → Build Windows EXE → Run workflow**. Al terminar,
+  descarga los artefactos:
+  - `Recordatorios-portable` → `.zip` (descomprimir y ejecutar `Recordatorios.exe`).
+  - `Recordatorios-instalador` → instalador `.exe`.
+- **Como Release descargable:** publica una etiqueta de versión y se crea un Release
+  con los archivos adjuntos:
+  ```sh
+  git tag v1.0.0
+  git push origin v1.0.0
+  ```
+
+> Las librerías que no están en Maven Central van versionadas en `reminder-app/libs/`
+> y el workflow las instala antes de compilar.
+
+---
+
 ## 👤 Autor
 **Jesús Gutiérrez** — [@Jesus123J](https://github.com/Jesus123J)

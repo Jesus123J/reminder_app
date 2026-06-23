@@ -19,6 +19,9 @@
 *.tar.gz
 *.rar
 
+# Excepcion: librerias vendorizadas necesarias para compilar en CI
+!reminder-app/libs/*.jar
+
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*

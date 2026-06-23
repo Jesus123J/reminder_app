@@ -1,0 +1,99 @@
+name: Build Windows EXE
+
+# Genera el ejecutable de Windows. Se puede lanzar a mano (Actions -> Run workflow)
+# o automaticamente al publicar una etiqueta de version (v1.0.0, etc.), que ademas
+# crea un Release con los archivos descargables.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK 17 (incluye jpackage)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Instalar librerias no publicadas en Maven Central
+        working-directory: reminder-app
+        shell: bash
+        run: |
+          mvn -q install:install-file -Dfile=libs/swing-datetime-picker-1.2.0.jar \
+            -DgroupId=com.reminder.app -DartifactId=swing-datetime-picker -Dversion=1.2.0 -Dpackaging=jar
+          mvn -q install:install-file -Dfile=libs/swing-toast-notifications-1.0.3.jar \
+            -DgroupId=raven.toast -DartifactId=swing-toast-notifications -Dversion=1.0.3 -Dpackaging=jar
+
+      - name: Compilar (fat jar)
+        working-directory: reminder-app
+        shell: bash
+        run: mvn -q clean package -DskipTests
+
+      - name: Preparar carpeta con el jar
+        working-directory: reminder-app
+        shell: bash
+        run: |
+          mkdir -p staging
+          cp target/reminder-app.jar staging/
+
+      # ----- Version portable (carpeta con .exe, sin instalador, no requiere Java) -----
+      - name: Crear app portable (jpackage app-image)
+        working-directory: reminder-app
+        shell: bash
+        run: |
+          jpackage --type app-image --name Recordatorios --app-version 1.0.0 \
+            --input staging --main-jar reminder-app.jar --main-class com.reminder.app.App \
+            --icon ../app/noti.ico --dest dist-portable
+
+      - name: Comprimir portable en .zip
+        working-directory: reminder-app
+        shell: pwsh
+        run: Compress-Archive -Path dist-portable/Recordatorios/* -DestinationPath Recordatorios-portable.zip -Force
+
+      - name: Subir portable (.zip)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Recordatorios-portable
+          path: reminder-app/Recordatorios-portable.zip
+
+      # ----- Instalador .exe (requiere WiX; si falla no rompe el portable) -----
+      - name: Instalar WiX Toolset
+        continue-on-error: true
+        shell: pwsh
+        run: choco install wixtoolset --no-progress -y
+
+      - name: Crear instalador .exe (jpackage)
+        id: installer
+        continue-on-error: true
+        working-directory: reminder-app
+        shell: bash
+        run: |
+          jpackage --type exe --name Recordatorios --app-version 1.0.0 \
+            --input staging --main-jar reminder-app.jar --main-class com.reminder.app.App \
+            --icon ../app/noti.ico --win-shortcut --win-menu --win-dir-chooser \
+            --dest dist-installer
+
+      - name: Subir instalador (.exe)
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: Recordatorios-instalador
+          path: reminder-app/dist-installer/*.exe
+          if-no-files-found: warn
+
+      # ----- Publicar Release con los archivos cuando se sube una etiqueta vX.Y.Z -----
+      - name: Publicar Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            reminder-app/Recordatorios-portable.zip
+            reminder-app/dist-installer/*.exe
