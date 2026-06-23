@@ -103,7 +103,24 @@
             <artifactId>swing-toast-notifications</artifactId>
             <version>1.0.3</version>
         </dependency>
-    
+
+        <!-- Google Calendar API + OAuth (integracion externa) -->
+        <dependency>
+            <groupId>com.google.api-client</groupId>
+            <artifactId>google-api-client</artifactId>
+            <version>2.7.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.oauth-client</groupId>
+            <artifactId>google-oauth-client-jetty</artifactId>
+            <version>1.36.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.apis</groupId>
+            <artifactId>google-api-services-calendar</artifactId>
+            <version>v3-rev20231123-2.0.0</version>
+        </dependency>
+
     </dependencies>
 
 

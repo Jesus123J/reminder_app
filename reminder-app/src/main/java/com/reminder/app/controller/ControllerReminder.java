@@ -5,6 +5,7 @@ import com.reminder.app.model.Reminder;
 import com.reminder.app.repository.ReminderRepository;
 import com.reminder.app.service.ReminderScheduler;
 import com.reminder.app.service.TrayNotifier;
+import com.reminder.app.service.integration.GoogleCalendarIntegration;
 import com.reminder.app.service.integration.IntegrationManager;
 import com.reminder.app.view.ViewReminder;
 import com.reminder.app.view.components.Action_button;
@@ -55,8 +56,9 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
      * y registrarla aqui.
      */
     private void registerIntegrations() {
-        // Las implementaciones concretas se registran en sus propias ramas.
-        // Ejemplo: integrations.register(new GoogleCalendarIntegration());
+        // Se habilita sola si existe client_secret.json en resources.
+        integrations.register(new GoogleCalendarIntegration());
+        // Para anadir mas conexiones: integrations.register(new TuIntegracion());
     }
 
     /** Se invoca (en el EDT) cuando un recordatorio alcanza su hora de aviso. */

@@ -34,3 +34,9 @@ cp.txt
 .idea/
 *.iml
 nbproject/private/
+
+# Credenciales y tokens de Google (NO subir)
+client_secret.json
+**/client_secret.json
+tokens/
+**/tokens/
