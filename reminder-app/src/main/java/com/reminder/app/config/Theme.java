@@ -75,6 +75,15 @@ public final class Theme {
         UIManager.put("Table.selectionBackground", SELECTION);
         UIManager.put("Table.selectionForeground", TEXT);
 
+        // Sin cambio de color al pasar/pulsar el mouse sobre el encabezado:
+        // se fuerza el mismo ambar/blanco en todos los estados para que el hover
+        // no se note y se mantenga el ambar plano y limpio.
+        UIManager.put("TableHeader.hoverBackground", PRIMARY);
+        UIManager.put("TableHeader.pressedBackground", PRIMARY);
+        UIManager.put("TableHeader.hoverForeground", TEXT_ON_PRIMARY);
+        UIManager.put("TableHeader.pressedForeground", TEXT_ON_PRIMARY);
+        UIManager.put("TableHeader.showTrailingVerticalLine", Boolean.FALSE);
+
         UIManager.put("Label.foreground", TEXT);
         UIManager.put("TextField.foreground", TEXT);
         UIManager.put("TextArea.foreground", TEXT);

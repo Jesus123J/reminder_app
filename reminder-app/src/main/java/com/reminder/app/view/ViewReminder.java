@@ -46,6 +46,8 @@ public final class ViewReminder extends javax.swing.JFrame {
         setupTableModel();
         cellRenderTable();
         settingDate();
+        // Ensancha la ventana 10px sobre el tamano calculado por pack().
+        setSize(getWidth() + 10, getHeight());
     }
 
     /**
