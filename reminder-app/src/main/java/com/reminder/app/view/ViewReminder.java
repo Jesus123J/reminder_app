@@ -577,45 +577,83 @@ public final class ViewReminder extends javax.swing.JFrame {
 
     // ----- API para el controlador: pintado de la tabla -----
 
-    /** Instala un modelo de tabla dinamico (sin filas hardcodeadas). */
+    /** Instala un modelo de tabla tipo "tarjetas": 1 columna rica + accion. */
     private void setupTableModel() {
         DefaultTableModel model = new DefaultTableModel(
-                new Object[]{"TÍTULO", "DESCRIPCIÓN", " "}, 0) {
+                new Object[]{"Recordatorios", " "}, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return column == 2; // solo la columna de accion (boton eliminar)
+                return column == 1; // solo la columna de accion (boton eliminar)
             }
         };
         jTable1.setModel(model);
     }
 
-    /** Refresca la tabla con la lista de recordatorios indicada. */
+    /** Refresca la tabla con la lista de recordatorios indicada (tarjetas HTML). */
     public void loadReminders(java.util.List<com.reminder.app.model.Reminder> reminders) {
         this.rowData = reminders;
         DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
         model.setRowCount(0);
         for (com.reminder.app.model.Reminder r : reminders) {
-            String when = (r.getDate() == null ? "" : r.getDate())
-                    + (r.getTime() == null ? "" : " " + r.getTime());
-            String desc = r.getDescription() == null ? "" : r.getDescription().replace("\n", " ");
-            String cat = r.getCategory() == null ? "" : r.getCategory();
-            if (!cat.isBlank()) {
-                desc = "[" + cat + "]" + (desc.isBlank() ? "" : "  ·  " + desc);
-            }
-            if (!when.isBlank()) {
-                desc = desc.isBlank() ? when : desc + "  ·  " + when;
-            }
-            if (r.isRecurring()) {
-                desc = "(repite) " + desc;
-            }
-            // Etiqueta de dia (Hoy/Mañana/...). Como la tabla va ordenada por
-            // vencimiento, las filas del mismo grupo quedan juntas.
-            String bucket = dayBucket(r.getDate());
-            desc = bucket + "  ·  " + desc;
-            model.addRow(new Object[]{r.getTitle(), desc, ""});
+            model.addRow(new Object[]{buildCardHtml(r), ""});
         }
         // Reaplicar render/editor de columnas tras cambiar el modelo.
         cellRenderTable();
+    }
+
+    /** Construye la "tarjeta" HTML de un recordatorio (titulo + meta en 2 lineas). */
+    private String buildCardHtml(com.reminder.app.model.Reminder r) {
+        String titleColor = toHex(priorityColorOf(r));
+        String muted = toHex(Theme.TEXT_MUTED);
+        String accent = toHex(Theme.PRIMARY_DARK);
+
+        String prioLabel;
+        switch (r.getPriority()) {
+            case ALTA: prioLabel = "Alta"; break;
+            case BAJA: prioLabel = "Baja"; break;
+            default:   prioLabel = "Media"; break;
+        }
+
+        StringBuilder meta = new StringBuilder();
+        meta.append(dayBucket(r.getDate()));
+        if (r.getTime() != null) {
+            meta.append(" · ").append(r.getTime());
+        }
+        if (r.getCategory() != null && !r.getCategory().isBlank()) {
+            meta.append(" · ").append(esc(r.getCategory()));
+        }
+        if (r.isRecurring()) {
+            meta.append(" · repite");
+        }
+        String desc = r.getDescription() == null ? "" : r.getDescription().replace("\n", " ").trim();
+        if (!desc.isBlank()) {
+            meta.append(" · ").append(esc(desc));
+        }
+
+        return "<html><div style='padding:3px 2px'>"
+                + "<font color='" + titleColor + "' size='4'><b>" + esc(r.getTitle()) + "</b></font>"
+                + "&nbsp;&nbsp;<font color='" + accent + "' size='2'>● " + prioLabel + "</font>"
+                + "<br><font color='" + muted + "' size='2'>" + meta + "</font>"
+                + "</div></html>";
+    }
+
+    private Color priorityColorOf(com.reminder.app.model.Reminder r) {
+        switch (r.getPriority()) {
+            case ALTA: return Theme.DANGER;
+            case BAJA: return Theme.TEXT_MUTED;
+            default:   return Theme.TEXT;
+        }
+    }
+
+    private String toHex(Color c) {
+        return String.format("#%02x%02x%02x", c.getRed(), c.getGreen(), c.getBlue());
+    }
+
+    private String esc(String s) {
+        if (s == null) {
+            return "";
+        }
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     /** Clasifica una fecha en un grupo legible relativo a hoy. */
@@ -639,69 +677,38 @@ public final class ViewReminder extends javax.swing.JFrame {
         return "Después";
     }
 
-    /** Color del texto segun la prioridad del recordatorio de esa fila. */
-    private Color priorityColor(int row) {
-        if (rowData != null && row >= 0 && row < rowData.size()) {
-            switch (rowData.get(row).getPriority()) {
-                case ALTA: return Theme.DANGER;
-                case BAJA: return Theme.TEXT_MUTED;
-                default:   return Theme.TEXT;
-            }
-        }
-        return Theme.TEXT;
-    }
-
     public void cellRenderTable() {
-        // Encabezado: fondo ambar con texto BLANCO en negrita (alto contraste).
-        jTable1.getTableHeader().setDefaultRenderer(new TableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                JLabel label = new JLabel(value == null ? "" : value.toString());
-                label.setOpaque(true);
-                label.setHorizontalAlignment(JLabel.CENTER);
-                label.setFont(Theme.fontBold(14));
-                label.setBackground(Theme.PRIMARY);
-                label.setForeground(Theme.TEXT_ON_PRIMARY);
-                label.setBorder(new EmptyBorder(8, 8, 8, 8));
-                return label;
-            }
-        });
+        // Sin cabecera: aspecto de lista/tarjetas, no de tabla clasica.
+        jTable1.setTableHeader(null);
 
-        // Celdas de texto: color oscuro legible + filas alternadas (zebra).
-        DefaultTableCellRenderer cellRenderer = new DefaultTableCellRenderer() {
+        // Tarjeta: contenido HTML (titulo + meta) con zebra y borde redondeado.
+        DefaultTableCellRenderer cardRenderer = new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 JLabel c = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                c.setBorder(new EmptyBorder(0, 12, 0, 12));
-                c.setFont(Theme.fontRegular(14));
-                if (isSelected) {
-                    c.setBackground(Theme.SELECTION);
-                } else {
-                    c.setBackground(row % 2 == 0 ? Theme.ROW_EVEN : Theme.ROW_ODD);
-                }
-                // Columna TITULO coloreada por prioridad (rojo=alta, atenuado=baja).
-                c.setForeground(column == 0 ? priorityColor(row) : Theme.TEXT);
-                if (column == 0) {
-                    c.setFont(Theme.fontBold(14));
-                }
+                c.setVerticalAlignment(JLabel.CENTER);
+                c.setBorder(new EmptyBorder(6, 14, 6, 10));
+                c.setBackground(isSelected ? Theme.SELECTION : (row % 2 == 0 ? Theme.ROW_EVEN : Theme.ROW_ODD));
                 return c;
             }
         };
-        jTable1.getColumnModel().getColumn(0).setCellRenderer(cellRenderer);
-        jTable1.getColumnModel().getColumn(1).setCellRenderer(cellRenderer);
+        jTable1.getColumnModel().getColumn(0).setCellRenderer(cardRenderer);
 
-        jTable1.getColumnModel().getColumn(2).setCellEditor(new CellEditorTable(new JComboBox<>(), event_button));
-        jTable1.getColumnModel().getColumn(2).setCellRenderer(new CellEditorTable(new JComboBox<>(), event_button));
+        // Columna de accion (boton eliminar) estrecha.
+        jTable1.getColumnModel().getColumn(1).setCellEditor(new CellEditorTable(new JComboBox<>(), event_button));
+        jTable1.getColumnModel().getColumn(1).setCellRenderer(new CellEditorTable(new JComboBox<>(), event_button));
+        jTable1.getColumnModel().getColumn(1).setMinWidth(150);
+        jTable1.getColumnModel().getColumn(1).setMaxWidth(170);
+        jTable1.getColumnModel().getColumn(1).setPreferredWidth(160);
 
         jTable1.setSelectionBackground(Theme.SELECTION);
         jTable1.setSelectionForeground(Theme.TEXT);
-        jTable1.setRowHeight(42);
-        jTable1.setShowVerticalLines(false);
-        jTable1.setGridColor(Theme.LINE);
+        jTable1.setRowHeight(64);
+        jTable1.setShowGrid(false);
+        jTable1.setIntercellSpacing(new Dimension(0, 6));
         jTable1.setBackground(Theme.BACKGROUND);
         jTable1.setForeground(Theme.TEXT);
-        jTable1.getTableHeader().setPreferredSize(new Dimension(0, 38));
-        jTable1.getTableHeader().setReorderingAllowed(false);
+        jTable1.setFillsViewportHeight(true);
     }
 
     /**
