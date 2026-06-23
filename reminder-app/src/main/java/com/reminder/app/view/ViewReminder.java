@@ -4,16 +4,17 @@
  */
 package com.reminder.app.view;
 
+import com.reminder.app.config.Theme;
 import com.reminder.app.util.PanelRound;
 import com.reminder.app.view.components.Action_button;
-import com.reminder.app.view.components.CellJPanel;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Font;
-import javax.swing.JCheckBox;
+import java.awt.Dimension;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JTable;
+import javax.swing.border.EmptyBorder;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellRenderer;
 import raven.datetime.component.date.DatePicker;
 import raven.datetime.component.time.TimePicker;
@@ -34,8 +35,49 @@ public final class ViewReminder extends javax.swing.JFrame {
         this.event_button = event_button;
         Notifications.getInstance().setJFrame(this);
         initComponents();
+        applyTheme();
         cellRenderTable();
         settingDate();
+    }
+
+    /**
+     * Aplica la paleta y tipografias del {@link Theme} sobre los componentes,
+     * corrigiendo el bajo contraste de las "letras negras" y unificando colores.
+     */
+    private void applyTheme() {
+        getContentPane().setBackground(Theme.BACKGROUND);
+        jPanel1.setBackground(Theme.BACKGROUND);
+
+        // Tarjetas con superficie clara y borde sutil ya redondeado.
+        for (PanelRound panel : new PanelRound[]{panelRound1, panelRound2}) {
+            panel.setBackground(Theme.SURFACE);
+        }
+        panelRound3.setBackground(Theme.BACKGROUND);
+
+        // Campos de fecha/hora/combo: texto oscuro legible sobre la tarjeta.
+        for (Component c : new Component[]{jFormattedDateStart, jFormattedTextField1, jComboBox1}) {
+            c.setBackground(Theme.SURFACE);
+            c.setForeground(Theme.TEXT);
+            c.setFont(Theme.fontRegular(14));
+        }
+
+        // Titulo y descripcion.
+        textField1.setForeground(Theme.TEXT);
+        textField1.setBackground(Theme.SURFACE);
+        textField1.setFont(Theme.fontRegular(15));
+        jTextPane1.setForeground(Theme.TEXT);
+        jTextPane1.setFont(Theme.fontRegular(14));
+
+        // Botones de accion.
+        styleButton(buttonSaveData, Theme.PRIMARY, Theme.TEXT_ON_PRIMARY);
+        styleButton(button1, Theme.DANGER, Theme.TEXT_ON_PRIMARY);
+        styleButton(button2, Theme.PRIMARY, Theme.TEXT_ON_PRIMARY);
+    }
+
+    private void styleButton(com.reminder.app.util.Button button, Color bg, Color fg) {
+        button.setBackground(bg);
+        button.setForeground(fg);
+        button.setFont(Theme.fontBold(13));
     }
 
     public void settingDate() {
@@ -46,23 +88,52 @@ public final class ViewReminder extends javax.swing.JFrame {
     }
 
     public void cellRenderTable() {
+        // Encabezado: fondo ambar con texto BLANCO en negrita (alto contraste).
         jTable1.getTableHeader().setDefaultRenderer(new TableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                JLabel label = new JLabel(value.toString());
+                JLabel label = new JLabel(value == null ? "" : value.toString());
                 label.setOpaque(true);
                 label.setHorizontalAlignment(JLabel.CENTER);
-                label.setFont(new Font(Font.MONOSPACED, 3, 18));
-
+                label.setFont(Theme.fontBold(14));
+                label.setBackground(Theme.PRIMARY);
+                label.setForeground(Theme.TEXT_ON_PRIMARY);
+                label.setBorder(new EmptyBorder(8, 8, 8, 8));
                 return label;
             }
         });
-        jTable1.getColumnModel().getColumn(2).setCellEditor(new CellEditorTable(new JComboBox<>(), event_button));
-        jTable1.setSelectionBackground(Color.ORANGE);
-        jTable1.getColumnModel().getColumn(2).setCellRenderer(new CellEditorTable(new JComboBox<>(), event_button));
-        jTable1.setRowHeight(40);
-        jTable1.setBackground(Color.WHITE);
 
+        // Celdas de texto: color oscuro legible + filas alternadas (zebra).
+        DefaultTableCellRenderer cellRenderer = new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                JLabel c = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                c.setBorder(new EmptyBorder(0, 12, 0, 12));
+                c.setFont(Theme.fontRegular(14));
+                if (isSelected) {
+                    c.setBackground(Theme.SELECTION);
+                } else {
+                    c.setBackground(row % 2 == 0 ? Theme.ROW_EVEN : Theme.ROW_ODD);
+                }
+                c.setForeground(Theme.TEXT);
+                return c;
+            }
+        };
+        jTable1.getColumnModel().getColumn(0).setCellRenderer(cellRenderer);
+        jTable1.getColumnModel().getColumn(1).setCellRenderer(cellRenderer);
+
+        jTable1.getColumnModel().getColumn(2).setCellEditor(new CellEditorTable(new JComboBox<>(), event_button));
+        jTable1.getColumnModel().getColumn(2).setCellRenderer(new CellEditorTable(new JComboBox<>(), event_button));
+
+        jTable1.setSelectionBackground(Theme.SELECTION);
+        jTable1.setSelectionForeground(Theme.TEXT);
+        jTable1.setRowHeight(42);
+        jTable1.setShowVerticalLines(false);
+        jTable1.setGridColor(Theme.LINE);
+        jTable1.setBackground(Theme.BACKGROUND);
+        jTable1.setForeground(Theme.TEXT);
+        jTable1.getTableHeader().setPreferredSize(new Dimension(0, 38));
+        jTable1.getTableHeader().setReorderingAllowed(false);
     }
 
     /**

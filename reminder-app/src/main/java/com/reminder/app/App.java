@@ -2,6 +2,7 @@ package com.reminder.app;
 
 import com.formdev.flatlaf.FlatLightLaf;
 import com.reminder.app.config.AppConfig;
+import com.reminder.app.config.Theme;
 import com.reminder.app.controller.ControllerReminder;
 import javax.swing.SwingUtilities;
 
@@ -16,6 +17,7 @@ public class App {
 
     public static void main(String[] args) {
         FlatLightLaf.setup();
+        Theme.applyGlobalDefaults();
         AppConfig.createDocumentData();
 
         // Toda la UI de Swing debe construirse en el EDT.
