@@ -9,6 +9,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write   # necesario para crear el Release y adjuntar archivos
+
 jobs:
   build:
     runs-on: windows-latest
