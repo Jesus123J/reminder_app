@@ -378,6 +378,48 @@ public final class ViewReminder extends javax.swing.JFrame {
         return jTable1.getSelectedRow();
     }
 
+    /**
+     * Instala el menu contextual (clic derecho) para posponer un recordatorio.
+     * El manejador recibe (fila, minutos).
+     */
+    public void installSnoozeMenu(java.util.function.BiConsumer<Integer, Integer> handler) {
+        javax.swing.JPopupMenu popup = new javax.swing.JPopupMenu();
+        int[] minutos = {10, 30, 60};
+        for (int m : minutos) {
+            javax.swing.JMenuItem item = new javax.swing.JMenuItem("Posponer " + m + " min");
+            final int mins = m;
+            item.addActionListener(e -> {
+                int row = jTable1.getSelectedRow();
+                if (row >= 0) {
+                    handler.accept(row, mins);
+                }
+            });
+            popup.add(item);
+        }
+        // Seleccionar la fila bajo el cursor al hacer clic derecho.
+        jTable1.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent e) {
+                maybeSelect(e);
+            }
+
+            @Override
+            public void mouseReleased(java.awt.event.MouseEvent e) {
+                maybeSelect(e);
+            }
+
+            private void maybeSelect(java.awt.event.MouseEvent e) {
+                if (e.isPopupTrigger()) {
+                    int row = jTable1.rowAtPoint(e.getPoint());
+                    if (row >= 0) {
+                        jTable1.setRowSelectionInterval(row, row);
+                    }
+                }
+            }
+        });
+        jTable1.setComponentPopupMenu(popup);
+    }
+
     /** Limpia el formulario tras guardar. */
     public void clearForm() {
         textField1.setText("");

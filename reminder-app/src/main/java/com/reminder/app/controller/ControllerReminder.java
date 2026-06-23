@@ -53,6 +53,7 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         viewReminder.getDeleteAllButton().addActionListener(e -> deleteAll());
         viewReminder.getEditButton().addActionListener(e -> loadSelectedForEdit());
         viewReminder.setRowSelectionHandler(this::loadForEdit);
+        viewReminder.installSnoozeMenu(this::snooze);
         viewReminder.installIntegrationsMenu(integrations, soundPlayer);
         trayNotifier.enableMinimizeToTray(viewReminder);
         refreshTable();
@@ -174,6 +175,22 @@ public class ControllerReminder extends ModelReminderData implements ActionListe
         // Revision inmediata: si ya vencio (segun la antelacion), avisa al instante.
         scheduler.checkNow();
         trayNotifier.show("Recordatorio guardado", title);
+    }
+
+    /** Pospone el recordatorio de la fila: lo reprograma a ahora + minutos. */
+    private void snooze(int row, int minutes) {
+        if (currentReminders == null || row < 0 || row >= currentReminders.size()) {
+            return;
+        }
+        Reminder r = currentReminders.get(row);
+        java.time.LocalDateTime newDue = java.time.LocalDateTime.now().plusMinutes(minutes);
+        r.setDate(newDue.toLocalDate());
+        r.setTime(newDue.toLocalTime().withSecond(0).withNano(0));
+        r.setAdvanceMinutes(0);
+        r.setNotified(false);
+        repository.update(r);
+        refreshTable();
+        trayNotifier.show("Pospuesto", r.getTitle() + " · en " + minutes + " min");
     }
 
     private Reminder findById(long id) {
